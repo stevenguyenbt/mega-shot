@@ -1,0 +1,55 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#222">
+<canvas id="c"></canvas>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// Debug: motion filmstrips for one studio character.
+//   ?mau=mai|thu|kai  ·  ?kieu=di|di-cham|chay (walk strip, ground ticks show foot sliding)  ·  ?goc=ngang|3-4  ·  ?huong=1|-1  ·  ?n=10 frames  ·  ?toc=<px/s>
+//   ?clip=<name>&t0=&t1= : a clip strip instead of a walk  ·  ?tay=1 : crop each frame to the hands (pointing / holding checks)  ·  ?tren=<upper clip over the walk>
+const q = new URLSearchParams(location.search);
+const MAU = {
+  mai: { ten: 'Mai', phong_cach: 'anime-thanh-nien', gioi: 'nu', tuoi: 'nguoi-lon', hinh_the: 'vua', da: '#fbe3d0', toc: { kieu: 'bob', mau: '#3a2620' }, mat: { mau: '#5a3a22' }, mat_dang: 'tron', mat_kieu: 'to', may_kieu: 'manh', mui: 'cham',
+    ao: { kieu: 'so-mi', mau: '#cfe0f0' }, quan: { kieu: 'dai', mau: '#2e3a52' }, giay: { mau: '#3a2a24', de: '#1a1416', day: '#3a2a24' } },
+  thu: { ten: 'Thu', phong_cach: 'anime-thanh-nien', gioi: 'nu', tuoi: 'nguoi-lon', hinh_the: 'vua', da: '#f3d6c0', toc: { kieu: 'bui', mau: '#24191a' }, mat: { mau: '#3a2418' }, mat_dang: 'oval', mat_kieu: 'sac', may_kieu: 'ngang', mui: 'cao',
+    ao: { kieu: 'blazer', mau: '#3a3f4a', mau_trong: '#f4f2ee' }, quan: { kieu: 'vay', mau: '#2e2e36' }, giay: { mau: '#2a2224', de: '#16121a', day: '#2a2224' } },
+  kai: { ten: 'Kai', phong_cach: 'anime-thanh-nien', tuoi: 'thieu-nien', gioi: 'nam', than_hinh: 'gay', da: '#fbe6d4', toc: { kieu: 'bom', mau: '#e8892e' }, mat: { mau: '#a8552e' },
+    ao: { kieu: 'so-mi', mau: '#f3f3ef' }, ca_vat: '#1c1b20', quan: { kieu: 'dai', mau: '#2a2a32' }, giay: { mau: '#2a2224', de: '#18141a', day: '#2a2224' } },
+};
+const spec = q.get('spec') ? JSON.parse(q.get('spec')) : MAU[q.get('mau') || 'mai'];
+const cv = document.getElementById('c'), x = cv.getContext('2d'), off = document.createElement('canvas'); off.width = 1400; off.height = 1500; const og = off.getContext('2d');
+const N = +(q.get('n') || 10), KI = q.get('kieu') || 'di', GOC = q.get('goc') || 'ngang', HU = +(q.get('huong') || 1), TAY = !!q.get('tay'), CLIP = q.get('clip');
+const TOC = +(q.get('toc') || ({ di: 300, 'di-cham': 150, chay: 700 }[KI] || 300));
+let ve;
+(async () => { const cast = { nv: { ve: { kieu: 'anh', xuong: spec } } }; await MS.nv.loadCast(cast); ve = cast.nv.ve; window.READY = true; render(0); })();
+function mk() {
+  if (CLIP) return MS.nv.actor({ id: 'nv', ve, x: 700, y: 1400, huong: HU, goc: GOC, bc: 'binh', hd: [{ t: 0, clip: CLIP }], lo_xo: false });
+  const hd = q.get('tren') ? [{ t: 0, clip: q.get('tren') }] : [];
+  return MS.nv.actor({ id: 'nv', ve, x: 0, x1: HU * 9000, y: 1400, toc: TOC, kieu_di: KI, huong: HU, goc: GOC, bc: 'binh', hd, lo_xo: false });
+}
+window.render = async () => {
+  if (q.get('clips')) {                                                           // one frame per clip: ?clips=a,b,c&t=0.8 (each at t, or name@t)
+    const L = q.get('clips').split(','), CW = 300, CH = 560; cv.width = CW * L.length; cv.height = CH + 40; x.fillStyle = '#2b3442'; x.fillRect(0, 0, cv.width, cv.height);
+    L.forEach((nm, i) => { const [c, tt] = nm.split('@'), t = +(tt || q.get('t') || .8), a = MS.nv.actor({ id: 'nv', ve, x: 700, y: 1400, huong: HU, goc: GOC, bc: 'binh', hd: [{ t: 0, clip: c }], lo_xo: false });
+      og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 1400, 1500); og.fillStyle = '#4a5466'; og.fillRect(0, 1400, 1400, 100); MS.nv.scene(og, [a], t);
+      const s2 = .5, X0 = i * CW; x.save(); x.beginPath(); x.rect(X0, 0, CW, CH); x.clip(); x.drawImage(off, 700 - CW / s2 / 2, 1460 - CH / s2, CW / s2, CH / s2, X0, 0, CW, CH); x.restore();
+      x.fillStyle = '#ffe08a'; x.font = '600 18px sans-serif'; x.fillText(nm, X0 + 8, CH + 28); x.strokeStyle = '#111'; x.strokeRect(X0, 0, CW, CH); });
+    return 1; }
+  const a = mk(), CW = TAY ? 520 : 260, CH = TAY ? 420 : 560;
+  cv.width = CW * N; cv.height = CH + 40; x.fillStyle = '#2b3442'; x.fillRect(0, 0, cv.width, cv.height);
+  MS.nv.scene(og, [a], 0);                                                       // resolves the rig (a.R) so the step length is known
+  const t0 = CLIP ? +(q.get('t0') || 0) : 2.0, t1 = CLIP ? +(q.get('t1') || 1.2) : 2.0 + (q.get('chu_ky') ? +q.get('chu_ky') : 2 * a.path.L * Math.sqrt(a.R.LS) / a.path.vmax);
+  for (let i = 0; i < N; i++) {
+    const t = t0 + (t1 - t0) * i / N, rx = MS.nv.rootAt(a, t).x;
+    og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 1400, 1500); og.translate(700 - rx, 0);
+    og.fillStyle = '#4a5466'; og.fillRect(rx - 800, 1400, 1600, 100);
+    og.fillStyle = '#9aa6b8'; for (let gx = Math.floor((rx - 800) / 80) * 80; gx < rx + 800; gx += 80) og.fillRect(gx - 2, 1400, 4, 30);   // world ticks: a planted foot must not slide across them
+    const anc = MS.nv.scene(og, [a], t), hp = (anc.nv || {}).hand;
+    const X0 = i * CW;
+    if (TAY) { const v = MS.nv.vungAt(a, t).toan_than, hs = Object.values((anc.nv || {}).hands || {}).filter(Boolean).sort((p, r) => HU * (r[0] - p[0]) || (p[1] - r[1]))[0] || hp, cx = hs[0] + HU * 30, cy = hs[1], S = 2.4;   // the hand reaching furthest in the facing direction   // crop: shoulders → reaching hand
+      x.save(); x.beginPath(); x.rect(X0, 0, CW, CH); x.clip(); x.drawImage(off, cx - CW / S / 2, cy - CH / S / 2, CW / S, CH / S, X0, 0, CW, CH); x.restore(); }
+    else { const s2 = .44; x.save(); x.beginPath(); x.rect(X0, 0, CW, CH); x.clip(); x.drawImage(off, 700 - CW / s2 / 2, 1460 - CH / s2, CW / s2, CH / s2, X0, 0, CW, CH); x.restore(); }
+    x.fillStyle = '#ffe08a'; x.font = '600 18px sans-serif'; x.fillText(`${(t - t0).toFixed(2)}s`, X0 + 8, CH + 28);
+    x.strokeStyle = '#111'; x.strokeRect(X0, 0, CW, CH);
+  }
+  return 1;
+};
+</script>

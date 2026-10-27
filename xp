@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# mega-shot · xp — command-line video studio (needs uv and ffmpeg)
+exec uv run --quiet --no-project --with playwright==1.63.0 --with pyyaml --with pillow --with numpy --with ruamel.yaml python "$(dirname "$0")/tools/xp.py" "$@"

@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#222">
+<canvas id="c"></canvas>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// Character studio gallery: the same two characters in every drawing style (?styles=anime,anime-manga,anime-mem), full body + face close-up.
+// window.render(t) for frame export.
+const q = new URLSearchParams(location.search), styles = (q.get('styles') || 'anime,anime-manga,anime-mem').split(',');
+const CHAU = { vai: 'chau', da: '#fde4d2', toc: { mau: '#3b2a26' }, mat: { mau: '#6a3f26' }, ao: { kieu: 'khoac-mo', mau: '#7fc8c0', mau_trong: '#fbfbf8' }, quan: { kieu: 'short', mau: '#5a4436' },
+  giay: { mau: '#f6f6f2', de: '#e8584a', day: '#3a6ab0' }, kinh: { mau: '#f0902a' }, day_chuyen: '#e8b83c' };
+const BA = { vai: 'ba', da: '#f2d2bc', toc: { kieu: 'bui', mau: '#d8d2cc' }, mat: { mau: '#4a3426' }, ao: { kieu: 'ba-ba', mau: '#8a6aa6' }, quan: { kieu: 'dai', mau: '#3a3438' }, giay: { kieu: 'dep', mau: '#7a5232' } };
+const cv = document.getElementById('c'), CW = 560, CH = 900; cv.width = CW * styles.length; cv.height = CH; const x = cv.getContext('2d');
+let A = [];
+(async () => {
+  const cast = {}; styles.forEach(s => { cast['c_' + s] = { ve: { kieu: 'anh', xuong: { ...CHAU, phong_cach: s } } }; cast['b_' + s] = { ve: { kieu: 'anh', xuong: { ...BA, phong_cach: s } } }; });
+  await MS.nv.loadCast(cast);
+  A = styles.map(s => [MS.nv.actor({ id: 'b', ve: cast['b_' + s].ve, x: 120, y: 0, huong: 1, goc: '3-4', bc: 'binh' }), MS.nv.actor({ id: 'c', ve: cast['c_' + s].ve, x: -90, y: 0, huong: 1, goc: '3-4', bc: 'binh' })]);
+  window.READY = true; render(+(location.hash.slice(1)) || .5);
+})();
+window.render = async t => {
+  styles.forEach((s, i) => { const X = i * CW;
+    x.save(); x.beginPath(); x.rect(X, 0, CW, CH); x.clip(); const g = x.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, '#bfe0f0'); g.addColorStop(1, '#f4eadc'); x.fillStyle = g; x.fillRect(X, 0, CW, CH);
+    x.fillStyle = '#9cc58a'; x.fillRect(X, 700, CW, 200);
+    const z = +(q.get('zoom') || 1); x.translate(X + CW / 2, 700 + (z - 1) * 330); x.scale(.95 * z, .95 * z); MS.nv.scene(x, A[i], t); x.restore();
+    x.fillStyle = 'rgba(10,10,20,.7)'; x.fillRect(X, 0, CW, 44); x.fillStyle = '#ffe08a'; x.font = '700 26px sans-serif'; x.fillText('phong_cach: ' + s, X + 14, 31); });
+  return 1;
+};
+</script>

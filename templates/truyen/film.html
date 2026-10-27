@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<style>
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:OSW;src:url("/root/.mega-shot/fonts/Oswald[wght].ttf");font-weight:200 700}
+</style>
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/nhanvat.js"></script><script src="/ms/core/nhanvat_clip.js"></script><script src="/ms/core/hieuung_lop.js"></script><script src="/ms/core/xuong_nhanvat.js"></script><script src="/ms/core/xuong_anime.js"></script><script src="/ms/core/giaiphau.js"></script><script src="/ms/core/toc_nhanvat.js"></script><script src="/ms/core/truyen.js"></script><script src="/ms/core/film.js"></script>
+<script>
+// Template "truyen" (story films, references/story/README.md): flat 2D sets + characters (nhan_vat in video.yaml) + shot list per line.
+let CTX = { cast: {}, words: [] };
+MS.film({
+  vignette: .35, transition: { type: 'cut', dur: .01 },
+  style: { subtitle_style: 'giua', titleFont: 'OSW, "Be Vietnam Pro", sans-serif' },
+  prepare: async TL => { if ((TL.style || {}).subtitle_style) MS.STYLE.subtitle_style = TL.style.subtitle_style;   // video.yaml phong_cach.subtitle_style beats the template default
+    CTX.words = (TL.subs || []).flatMap(s => s.w || []).map(w => [w[0], w[1], w[2]]);
+    const spec = await (await fetch('build/nhan_vat.json')).json().catch(() => ({})); CTX.cast = spec; await MS.nv.loadCast(spec); },
+  scenes: { '*': { draw(x, c) { MS.truyen.draw(x, c, CTX); } } },
+  hideSubs: t => { const s = MS.TL.scenes.find(s => t >= s.t0 && t < s.t1); return !!(s && s.data && (s.data.shots || []).length && s.data.shots.every(h => h.set === 'chu')); },   // a text-card scene IS the subtitle
+});
+</script>

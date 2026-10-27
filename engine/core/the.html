@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script>
+<script>
+// mega-shot · chapter card for long videos: ?fmt=16x9&kieu=chuong|mo-dau|ket&so=2&tieu_de=…&phu_de=…&dur=3.5&mau=%23ffc46a
+const P = new URLSearchParams(location.search), { clamp, eo3, sio, rgen, soft } = MS.u;
+MS.FMT = MS.FORMATS[P.get('fmt') || '16x9']; MS.LANG = P.get('lang') || 'vi'; const { W, H } = MS.FMT, DUR = +(P.get('dur') || 3.5), kieu = P.get('kieu') || 'chuong', acc = P.get('mau') || MS.STYLE.accent;
+const c = document.getElementById('c'); c.width = W; c.height = H; const x = c.getContext('2d'), dots = (() => { const r = rgen(5); return Array.from({ length: 140 }, () => [r(), r(), .5 + r() * 2.5, r() * 6]); })();
+window.render = t => {
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0b0d18'); g.addColorStop(1, '#1b1226'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  soft(x, W * (.3 + .1 * Math.sin(t * .5)), H * .45, W * .45, H * .45, acc, .12); soft(x, W * .75, H * .6, W * .35, H * .35, '#5a7aff', .1);
+  dots.forEach(([u, v, s, ph]) => { x.globalAlpha = .25 + .25 * Math.sin(t * 1.5 + ph); x.fillStyle = '#fff'; x.beginPath(); x.arc(u * W, ((v - t * .015 * s) % 1 + 1) % 1 * H, s, 0, 7); x.fill(); }); x.globalAlpha = 1;
+  const big = Math.min(W, H) * (kieu === 'mo-dau' ? .1 : .085), cy = H * .47;
+  if (kieu === 'chuong') { x.save(); x.globalAlpha = eo3(t / .5); x.font = `700 ${big * .42}px ${MS.STYLE.font}`; x.fillStyle = acc; x.textAlign = 'center'; x.fillText(`${MS.LANG.startsWith('en') ? 'PART' : 'PHẦN'} ${P.get('so') || ''}`.toUpperCase(), W / 2, cy - big * 1.05 + 20 * (1 - eo3(t / .5))); x.restore(); }
+  x.font = `800 ${big}px ${MS.STYLE.font}`; const lines = MS.wrap(x, P.get('tieu_de') || '', W * .8);
+  lines.forEach((l, k) => MS.words(x, l, W / 2, cy + k * big * 1.15, .25 + k * .3, t, big, '#fff'));
+  const lw = W * .22 * eo3((t - .6) / .8), ly = cy + lines.length * big * 1.15 - big * .35; x.fillStyle = acc; x.fillRect(W / 2 - lw / 2, ly, lw, Math.max(4, big * .06));
+  if (P.get('phu_de')) { x.save(); x.globalAlpha = eo3((t - 1) / .6); x.font = `500 ${big * .38}px ${MS.STYLE.font}`; x.fillStyle = '#d8d4e8'; x.textAlign = 'center'; x.fillText(P.get('phu_de'), W / 2, ly + big * .9); x.restore(); }
+  MS.grain(x, t); const f = Math.max(1 - t / .45, (t - (DUR - .55)) / .55); if (f > 0) { x.fillStyle = `rgba(0,0,0,${clamp(f)})`; x.fillRect(0, 0, W, H); }
+  return 1;
+};
+window.DUR = DUR; window.GPU = 'canvas2d'; window.READY = true; render(1.5);
+</script>

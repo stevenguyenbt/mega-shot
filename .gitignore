@@ -1,0 +1,40 @@
+# --- private project data (never commit) ---
+.mega-shot/
+videos/
+kenh/
+.env
+*.env
+!.env.example
+keys.env
+client_secret*.json
+token_*.json
+
+# --- build output ---
+dist/
+build/
+out/
+*.mp4
+*.mov
+*.webm
+*.wav
+*.mp3
+!tests/fixtures/**
+
+# --- dependencies / caches ---
+engine/node_modules/
+node_modules/
+vendor/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+.uv/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.egg-info/
+uv.lock

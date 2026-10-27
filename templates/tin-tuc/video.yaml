@@ -1,0 +1,15 @@
+# "News" template: HyperFrames motion graphics (HTML + GSAP) per scene + mega-shot narration and subtitles.
+# xp narrate → xp hf → xp review → xp render → xp export → xp check
+# hf.kieu: tieu-de (headline) | ban-do (map) | con-so (number) | hai-phia (two sides) | dong-thoi-gian (timeline) | nguon (sources)   (see engine/hyperframes/tin-tuc.html)
+# News rules: attribute every figure to who reported it, show both sides' claims, only use sources you actually opened.
+name: __TEN__
+format: __KHUNG__
+language: en
+voice: { sample: anchor, volume: 0.6, speed: 1.05 }
+sfx: { level: 0.6, ambience: khong }
+news: { channel: "NEWS", date: "", ticker: [] }
+
+scenes:
+  - id: opening
+    hf: { kieu: tieu-de, nhan: BREAKING, dong: ["Headline line 1", "Headline line 2"], phu: "Sub-line" }
+    narration: The opening line.

@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#556">
+<canvas id="c"></canvas>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// Debug: every part image of one studio character (art, full outline ring, root-masked ring) laid out side by side.  ?spec=<json>  ·  window.render()
+const q = new URLSearchParams(location.search);
+const spec = q.get('spec') ? JSON.parse(q.get('spec')) : { ten: 'Kai', phong_cach: 'anime-thanh-nien', tuoi: 'thieu-nien', gioi: 'nam', than_hinh: 'gay', da: '#fbe6d4', toc: { kieu: 'bom', mau: '#e8892e' }, mat: { mau: '#a8552e' },
+  ao: { kieu: 'so-mi', mau: '#f3f3ef' }, ca_vat: '#1c1b20', quan: { kieu: 'dai', mau: '#2a2a32' }, giay: { mau: '#2a2224', de: '#18141a', day: '#2a2224' } };
+const names = (q.get('manh') || 'than,quan,chan,tay_R,ban_tay_tha_R').split(',');
+const cv = document.getElementById('c'), x = cv.getContext('2d'); let C;
+(async () => { C = MS.xuong.build(spec); window.READY = true; render(0); })();
+window.render = async () => {
+  let W = 0, H = 0; for (const n of names) { const im = C.img[n]; if (im) { W += im.width * 3 + 40; H = Math.max(H, im.height); } }
+  cv.width = W + 20; cv.height = H + 60; x.fillStyle = '#8a8f9a'; x.fillRect(0, 0, cv.width, cv.height); let X = 10;
+  for (const n of names) { const im = C.img[n]; if (!im) continue;
+    for (const [lab, src] of [['art', im], ['rf', (C.rf || {})[n]], ['rm', (C.rm || {})[n]]]) { if (src) x.drawImage(src, X, 40); x.fillStyle = '#000'; x.font = '16px sans-serif'; x.fillText(n + ' ' + lab, X, 20); X += im.width + 12; }
+    X += 10; }
+  return 1;
+};
+</script>

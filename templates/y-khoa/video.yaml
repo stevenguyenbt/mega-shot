@@ -1,0 +1,31 @@
+# "Medical 3D" template: "This is what happens inside your body when…" — every scene is a stylised glossy 3D set
+# (engine/backends/three/medical3d.js), a BODY CLOCK runs on top (body_clock), organ labels follow the 3D, every number has a source (source_note).
+# xp narrate → xp review → xp mix → xp render → xp export → xp check
+# yk: ly-ca-phe (coffee cup) | co-the (body: { soi: [tim, gan], bay: nao, uong: [0.1, 0.7], dong: nao|tim|gan, muc: [1, 0.5], goc: truoc|nghieng|xoay })
+#     da-day (stomach, { hap_thu: true }) | mach-mau (vessel, { adrenaline: true }) | nao (brain, { vao: true }) | thu-the (receptor, { chan: [0, 0.8] })
+#     tim (heart, { nhip: [70, 80], thuong_than: true }) | gan (liver, { chuyen_hoa: true }) | phan-tu (molecule)
+# organs (soi/bay): nao tim phoi gan da-day ruot-non ruot-gia than thuong-than thuc-quan mach
+# Health content: cite EFSA/FDA/NHS/MSD/PubMed in nghien_cuu.md, fact-check before narration, no treatment advice.
+name: __TEN__
+format: __KHUNG__
+language: en
+target_seconds: [45, 75]
+voice: { sample: documentarian, volume: 0.55, speed: 1.1 }
+sfx: { level: 0.8, ambience: khong }
+style: { label: "INSIDE YOUR BODY", subtitle_style: giua, subtitle_y: 0.74, title_style: tracking }
+
+scenes:
+  - id: opening
+    yk: ly-ca-phe
+    body_clock: 0
+    title: THIS IS WHAT HAPPENS…
+    narration: This is what happens inside your body when…
+  - id: body
+    yk: { kieu: co-the, soi: [da-day], uong: [0.1, 0.7] }
+    body_clock: [0, 600]
+    narration: The first time mark.
+  - id: ending
+    yk: { kieu: co-the, goc: xoay }
+    body_clock: 21600
+    question: A question that invites comments?
+    narration: A surprising fact. A question that invites comments?

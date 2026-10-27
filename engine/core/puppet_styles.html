@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#fff">
+<canvas id="c" width="1280" height="720"></canvas>
+<script src="util.js"></script><script src="puppet.js"></script>
+<script>
+// Preview of the five drawing styles (xp character styles → references/characters/style-*.gif + styles-lineup.gif)
+const P = MS.puppet, cv = document.getElementById('c'), g = cv.getContext('2d');
+const CH = { mochi: P.create(P.SAMPLES.mochi), pip: P.create(P.SAMPLES.pip), coco: P.create(P.SAMPLES.coco), bo: P.create(P.SAMPLES.bo), lua: P.create(P.SAMPLES.lua) };
+const INFO = { mochi: ['Mochi', 'kawaii · chibi, soft outline, sparkle eyes', ['#fff1f6', '#ffd9e8']], pip: ['Professor Pip', 'flat · vector shapes, no outline', ['#e9f3ff', '#c8def8']],
+  coco: ['Captain Coco', 'paper · cut-out craft, stop-motion', ['#fdf3e1', '#f1dcb8']], bo: ['Sir Bo', 'pixel · 8-bit pixel art', ['#e8f6e9', '#bfe3c4']], lua: ['Granny Lua', 'watercolor · wash + pencil line', ['#fbf8f2', '#efe6d6']] };
+// a little performance: talk + poses + expressions, loops every 6 s
+const TRACK = [{ t: 0, pose: 'idle', expr: 'happy' }, { t: 1.0, pose: 'explain', expr: 'happy' }, { t: 2.2, pose: 'point', expr: 'surprised' }, { t: 3.4, pose: 'cheer', expr: 'happy' }, { t: 4.6, pose: 'shrug', expr: 'smug' }];
+const WORDS = []; for (let k = 0; k < 30; k++) { const t0 = .3 + k * .19; if (t0 % 1.2 < .95) WORDS.push(['ba', t0, t0 + .16]); }
+const bg = (a, b) => { const gr = g.createLinearGradient(0, 0, 0, 720); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 1280, 720); g.fillStyle = 'rgba(0,0,0,.05)'; g.fillRect(0, 600, 1280, 120); };
+const label = (name, sub) => { g.fillStyle = '#2b2b33'; g.font = '800 54px "Segoe UI", Arial'; g.fillText(name, 56, 96); g.font = '600 26px "Segoe UI", Arial'; g.fillStyle = '#6a6a78'; g.fillText(sub, 58, 140); };
+window.DUR = { mochi: 6, pip: 6, coco: 6, bo: 6, lua: 6, lineup: 6 };
+window.draw = (kind, t) => { g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
+  if (kind === 'lineup') { bg('#fbfaf7', '#ece7dd'); g.fillStyle = '#2b2b33'; g.font = '800 44px "Segoe UI", Arial'; g.fillText('5 drawing styles · one rig', 40, 70);
+    Object.keys(CH).forEach((k, i) => { const x = 140 + i * 250; P.draw(g, CH[k], { x, y: 650, scale: .42, t: t + i * .4, track: TRACK, words: WORDS }); g.fillStyle = '#3a3a44'; g.font = '700 22px "Segoe UI", Arial'; g.textAlign = 'center'; g.fillText(INFO[k][0], x, 700); g.textAlign = 'left'; });
+  } else { const [n, sub, [a, b]] = INFO[kind]; bg(a, b); label(n, sub); P.draw(g, CH[kind], { x: 820, y: 690, scale: .78, t, track: TRACK, words: WORDS }); }
+  return cv.toDataURL('image/jpeg', .9); };
+</script>

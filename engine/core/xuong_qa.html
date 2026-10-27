@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#1b1f27">
+<canvas id="c"></canvas>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// Character studio QA: characters built from plain descriptions → balanced anatomy → test poses (→ and ←) with joint-coverage report.
+// ?mo_ta=<text>|<text>…  ?phong_cach=anime
+const q = new URLSearchParams(location.search), PC = q.get('phong_cach') || 'anime';
+const DESC = (q.get('mo_ta') || 'cậu bé 8 tuổi, mập, tóc xù nâu, áo khoác xanh ngọc, quần short nâu, kính cam, dây chuyền|bà cụ 70 tuổi, tóc búi bạc, áo bà ba tím, quần dài đen, dép nâu|cô gái 22 tuổi, gầy, tóc dài đen, áo thun hồng, quần dài xanh dương, giày trắng|chú 40 tuổi, mập, tóc ngắn đen, áo thun cam, quần dài nâu').split('|');
+const cv = document.getElementById('c'), x = cv.getContext('2d'); cv.width = 2100; cv.height = DESC.length * 470 + 20;
+window.render = async () => {
+  x.fillStyle = '#1b1f27'; x.fillRect(0, 0, cv.width, cv.height);
+  for (const [i, d] of DESC.entries()) {
+    const ve = { kieu: 'anh', xuong: { mo_ta: d, phong_cach: PC } }; await MS.nv.loadCast({ a: { ve } });
+    const C = MS.nv.CUT[ve.bo], rep = MS.giaiphau.kiemDinh(ve, { sheet: true }), A = C.giaiphau, Y = 20 + i * 470;
+    x.drawImage(rep.sheet, 0, Y + 60);
+    x.fillStyle = '#ffe08a'; x.font = '700 24px sans-serif'; x.fillText('“' + d + '”', 14, Y + 26);
+    x.font = '19px sans-serif'; x.fillStyle = rep.ok ? '#8fe08a' : '#ff8a7a';
+    x.fillText(`${A.tuoi} · ${A.nu ? 'female' : 'male'} · height ${(A.tong / A.H).toFixed(1)} heads · shoulders ${(2 * A.vai / A.H).toFixed(2)}H · legs ${((A.dui + A.cang + A.mat_ca) / A.H).toFixed(2)}H · joint overlap ${A.chong.toFixed(2)} · validation: ${rep.ok ? 'all joints closed ✓' : rep.loi.length + ' gaps'}${C.kiem_dinh && C.kiem_dinh.sua ? ' (auto-fixed ' + C.kiem_dinh.sua + ' passes)' : ''}`, 14, Y + 52);
+  }
+  return 1;
+};
+window.READY = true;
+</script>

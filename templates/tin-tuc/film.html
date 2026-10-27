@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<style>
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-Black.ttf);font-weight:900}
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:OSW;src:url("/root/.mega-shot/fonts/Oswald[wght].ttf");font-weight:200 700}
+</style>
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/fx.js"></script><script src="/ms/core/layers.js"></script><script src="/ms/core/stills.js"></script><script src="/ms/core/vetinh.js"></script><script src="/ms/core/film.js"></script>
+<script>
+// Template "tin-tuc" (news bulletin with HyperFrames motion graphics over REAL pictures).
+//   scene `tim: [...]` → real photos / footage (Wikimedia open-licence news photos, Pixabay…): Ken Burns, several camera angles per photo;
+//        each `tim` item may carry `chu_thich: "ẢNH TƯ LIỆU · date · source"` → caption chip while that photo is on screen (archive photos must say so)
+//   scene `hf: { kieu: … }` → `xp hf` renders HTML + GSAP (engine/hyperframes/tin-tuc.html) to RGBA PNGs drawn over the picture
+//        (without `tim` the graphics bring their own dark news background)
+//   scene `ve_tinh: { thu_muc: ve_tinh/<name>, diem, duong, vung, truoc, cam, xam }` → real satellite plates from `xp vetinh`
+//        (Satellite Briefing evidence style, engine/core/vetinh.js): dive from the region to the place, analyst grey, measurement marks
+//   Layers: picture → shade → HyperFrames graphics → caption chip → mega-shot karaoke subtitles.
+const { clamp } = MS.u; let BOOK = {}; const SEQ = {}, HF = {}, SHOT = {}, VT = {};
+function chip(x, c, txt) { if (!txt) return; x.save(); let fs = Math.round(c.W * .024); x.font = `600 ${fs}px OSW, sans-serif`; const m = x.measureText(txt).width; if (m + fs * 1.6 > c.W * .89) { fs = Math.floor(fs * c.W * .89 / (m + fs * 1.6)); x.font = `600 ${fs}px OSW, sans-serif`; }   // long captions shrink to fit
+  const w = x.measureText(txt).width + fs * 1.6, y = c.H * .79;   // below the subtitle band, above the TikTok caption area
+  x.fillStyle = 'rgba(6,9,18,.78)'; x.fillRect(c.W * .055, y, w, fs * 1.9); x.fillStyle = '#e5383b'; x.fillRect(c.W * .055, y, 5, fs * 1.9);
+  x.fillStyle = '#dfe6f5'; x.textBaseline = 'middle'; x.fillText(txt, c.W * .055 + fs * .9, y + fs * .97); x.restore(); }
+MS.film({
+  vignette: .25, transition: { type: 'fade', dur: .35 },
+  prepare: async TL => { BOOK = await (await fetch('giay_phep.json')).json().catch(() => ({}));
+    for (const s of TL.scenes) { const d = s.data || {}, b = BOOK[s.id];
+      if (d.tim && b && b.shots) { const A = { seq: MS.seq(`build/layers/${s.id}`, { ext: 'jpg' }), img: {}, lop: {}, diem: {} };
+        for (const sh of b.shots) if (sh.k === 'a') { const e = BOOK[sh.id] || {}; A.diem[sh.id] = e.diem; if (e.lop) A.lop[sh.id] = [await MS.img(e.lop.nen), await MS.img(e.lop.tien)]; if (e.file) A.img[sh.id] = await MS.img(e.file); }
+        SHOT[s.id] = A; }
+      else if (d.tim && b && b.khung) SEQ[s.id] = MS.seq(`build/layers/${s.id}`, { ext: 'jpg' });
+      if (d.ve_tinh) VT[s.id] = await MS.vetinh(d.ve_tinh.thu_muc, d.ve_tinh);
+      if (d.hf) HF[s.id] = MS.seq(`build/layers_hf/${s.id}`, { ext: 'png', fit: 'stretch' }); } },
+  scenes: { '*': { async draw(x, c) {
+    const pic = SHOT[c.id] || SEQ[c.id];
+    if (pic) { const k = MS.u.eio(clamp(c.lt / c.D)), z = (c.data.zoom0 ?? 1.0) + (c.data.zoom ?? .05) * k;
+      x.save(); x.translate(c.W / 2, c.H / 2); x.scale(z, z); x.translate(-c.W / 2, -c.H / 2);
+      if (SHOT[c.id]) await MS.shots(x, c, BOOK[c.id].shots, SHOT[c.id], { zoom0: c.data.zoom0, zoom: c.data.zoom, tam: c.data.tam, day: c.data.day ?? true }); else await SEQ[c.id](x, c); x.restore();
+      const g = x.createLinearGradient(0, 0, 0, c.H); g.addColorStop(0, 'rgba(6,9,18,.82)'); g.addColorStop(.22, 'rgba(6,9,18,.35)'); g.addColorStop(.5, 'rgba(6,9,18,.15)'); g.addColorStop(.68, 'rgba(6,9,18,.45)'); g.addColorStop(1, 'rgba(6,9,18,.9)');
+      x.fillStyle = g; x.fillRect(0, 0, c.W, c.H); }
+    else if (VT[c.id]) { VT[c.id](x, c);                                           // satellite: light shade only where the bar and the subtitles sit
+      const g = x.createLinearGradient(0, 0, 0, c.H); g.addColorStop(0, 'rgba(6,9,18,.6)'); g.addColorStop(.14, 'rgba(6,9,18,0)'); g.addColorStop(.62, 'rgba(6,9,18,0)'); g.addColorStop(1, 'rgba(6,9,18,.75)');
+      x.fillStyle = g; x.fillRect(0, 0, c.W, c.H); }
+    else { x.fillStyle = '#0b1020'; x.fillRect(0, 0, c.W, c.H); }
+    if (HF[c.id]) await HF[c.id](x, c);
+    if (pic && !c.ra) { const sh = (BOOK[c.id] || {}).shots, tim = [].concat(c.data.tim || []);   // caption of the photo on screen
+      let i = 0; if (sh) for (let j = 0; j < sh.length; j++) if (c.lt >= sh[j].t0 + (j ? .18 : 0)) { const m = /~(\d+)$/.exec(sh[j].id || ''); i = m ? +m[1] - 1 : 0; }   // a still > 6.5 s is split into several angles: map the SHOT's photo id (id, id~2…) back to its tim entry
+      chip(x, c, (tim[i] || {}).chu_thich); }
+    else if (VT[c.id] && !c.ra) chip(x, c, c.data.ve_tinh.chu_thich || VT[c.id].chu_thich);   // imagery credit, whole shot
+  } } },
+});
+</script>

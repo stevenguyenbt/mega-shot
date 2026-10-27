@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/film.js"></script>
+<script type="importmap">{"imports":{"three":"/ms/node_modules/three/build/three.module.js","three/addons/":"/ms/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+// Three.js template: HDRI + PBR ground + rotating rock block, orbiting camera. Required assets:
+//   xp download polyhaven syferfontein_1d_clear_puresky --resolution 4k
+//   xp download polyhaven sand_01 · xp download polyhaven large_sandstone_blocks
+import { THREE, create3D, post, hdri, sun, pbr, worldUV, vec } from '/ms/backends/three/ms3d.js';
+let C, rock;
+MS.film({
+  gpu: () => C.gpu(),
+  prepare: async TL => {
+    const { W, H } = MS.FORMATS[TL.format]; C = create3D({ W, H, fov: 35 });
+    await hdri(C, 'polyhaven/syferfontein_1d_clear_puresky/syferfontein_1d_clear_puresky_4k.hdr'); sun(C, { size: 12 });
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), await pbr('sand_01', { repeat: [80, 80] })); g.receiveShadow = true; C.scene.add(g);
+    rock = new THREE.Mesh(worldUV(new THREE.BoxGeometry(2, 2, 2)), await pbr('large_sandstone_blocks', { repeat: [.5, .5] })); rock.position.y = 1; rock.castShadow = true; C.scene.add(rock);
+    post(C, { ao: true, dof: { focus: 8 }, bloom: .1 });
+  },
+  scenes: { '*': { draw(x, c) {
+    rock.rotation.y = c.t * .3; const a = c.t * .15; C.camera.position.set(Math.cos(a) * 8, 2.4, Math.sin(a) * 8); C.camera.lookAt(0, 1, 0);
+    C.draw(x); MS.title(x, c.data.tieu_de || c.id, c.W / 2, c.H * .22, .3, c.lt, 76, '#fff', c.data.title_style || c.data.chu_kieu);
+  } } },
+});
+</script>

@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#ddd">
+<canvas id="c" width="1500" height="560"></canvas>
+<script src="util.js"></script><script src="hieuung_lop.js"></script>
+<script>
+// Before / after of the PhotoCraft-style layer effects on a code-drawn head + sleeve: flat fill vs outline + cel shadow + rim + bevel.
+const cv = document.getElementById('c'), x = cv.getContext('2d');
+const head = g => { g.fillStyle = '#f6d0b0'; g.beginPath(); g.ellipse(150, 170, 120, 128, 0, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(90, 230, 62, 52, 0, 0, 7); g.ellipse(212, 232, 62, 52, 0, 0, 7); g.fill(); };   // round head + puffy cheeks
+const hair = g => { g.fillStyle = '#23201f'; g.beginPath(); g.moveTo(30, 175); g.bezierCurveTo(20, 40, 120, 10, 170, 30); g.lineTo(185, 0); g.lineTo(200, 40);
+  g.bezierCurveTo(270, 50, 300, 120, 275, 180); g.lineTo(250, 120); g.lineTo(225, 150); g.lineTo(200, 95); g.lineTo(165, 130); g.lineTo(135, 90); g.lineTo(100, 135); g.lineTo(80, 100); g.lineTo(55, 160); g.closePath(); g.fill(); };
+const sleeve = g => { g.fillStyle = '#8fd0b0'; g.beginPath(); g.moveTo(40, 0); g.bezierCurveTo(120, -10, 130, 40, 125, 150); g.lineTo(30, 160); g.bezierCurveTo(20, 60, 10, 10, 40, 0); g.fill(); };
+const ST = { net: { size: 5, mau: '#2b1a12' }, bong: { mau: '#c97a5a', op: .55, goc: 135, xa: 22, mo: 0 }, sang: { mau: '#fff6e8', op: .35, co: 7 }, bevel: { co: 30, goc: 135, cao: 40, op_sang: .35, op_toi: .18 }, nhieu: .05 };
+const STH = { net: { size: 5, mau: '#120e0d' }, bong: { mau: '#000000', op: .35, goc: 135, xa: 16, mo: 0 }, bevel: { co: 18, goc: 135, cao: 40, op_sang: .5, op_toi: .2, cel: .35 } };
+const STS = { net: { size: 5, mau: '#1e3a2e' }, bong: { mau: '#4f9a7a', op: .7, goc: 135, xa: 26, mo: 0 }, sang: { mau: '#ffffff', op: .3, co: 6 } };
+window.render = async () => {
+  x.fillStyle = '#e9e4da'; x.fillRect(0, 0, cv.width, cv.height);
+  x.font = '700 26px sans-serif'; x.fillStyle = '#333'; x.fillText('Before: flat colour', 40, 40); x.fillText('After: outline + cel shadow + rim light + bevel (PhotoCraft algorithm)', 560, 40);
+  x.save(); x.translate(60, 120); head(x); hair(x); x.translate(330, 60); sleeve(x); x.restore();
+  const H = MS.lop.ve(300, 330, head, ST), R = MS.lop.ve(300, 200, hair, STH), S = MS.lop.ve(140, 170, sleeve, STS);
+  x.drawImage(H, 600 - H.pad, 120 - H.pad); x.drawImage(R, 600 - R.pad, 120 - R.pad); x.drawImage(S, 930 - S.pad, 180 - S.pad);
+  MS.lop.nutMuc(x, [[1150, 200], [1220, 160], [1300, 190], [1380, 150]], 7); MS.lop.nutMuc(x, [[1150, 300], [1250, 330], [1380, 280]], 10);
+  x.fillText('ink stroke tapered at both ends', 1160, 400);
+  return 1;
+};
+window.READY = true; render();
+</script>

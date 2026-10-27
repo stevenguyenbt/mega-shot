@@ -1,0 +1,30 @@
+# "Philosophy / motivation" template: every scene is a ready-made 3D set (engine/backends/three/sets3d.js),
+# a quote appears as a card on top (quote), the closing line slams in like a stamp (punchline). xp narrate → xp preview → xp mix → xp render → xp export → xp check
+# set3d: hai-ngua | dua-ngua | dau-truong | ham-tap | cot-hy-lap | cay-nho | vach-dich | phong-ngu | so-tay | to-ong | leu-tuyet |
+#        de-kiem | vang-lua | binh-minh | nui-dat ({ kieu: nui-dat, xong: true }) | nhiet-ke | ngu-cong | the-he | giot-nuoc | duc-da
+#        tang-da ({ kieu: tang-da, bac: true }) | piano ({ kieu: piano, diec: true }) | nha-hat ({ kieu: nha-hat, quay: false }) |
+#        nep-chan ({ kieu: nep-chan, buoc: true }) | duong-chay ({ kieu: duong-chay, huy: 3 } · { huy: 1, dong: true })
+#        xe-nui ({ kieu: xe-nui, nam: [1960, 1982] } · { xong: true })
+#        da-vo ({ vo: 0.67 }) | ban-viet ({ dem: [0, 3000], gio: true, goc: mat } · { sach: 47 }) | domino ({ n: 29, tu: 0, den: 12 } · { do: 0.8, toa: true } · { cho: true })
+# (set ids are Vietnamese names — see engine/backends/three/sets3d.js for what each one shows)
+name: __TEN__
+format: __KHUNG__
+language: en
+voice: { sample: documentarian, volume: 0.55, speed: 1.0 }
+# music: { file: <path>.mp3, volume: 0.6, duck: true }
+sfx: { level: 0.8, ambience: khong }
+style: { label: "PHILOSOPHY · 1", subtitle_style: highlight, title_style: tracking }
+
+scenes:
+  - id: opening
+    set3d: hai-ngua
+    title: An opening question
+    narration: An opening line that sparks curiosity.
+  - id: quote
+    set3d: dua-ngua
+    quote: { text: "The quote.", source: "Author, Book, chapter", at: "quote" }
+    narration: The author wrote. The quote.
+  - id: ending
+    set3d: vach-dich
+    punchline: THE PUNCHLINE.
+    narration: The closing thought and a call to action. The punchline.

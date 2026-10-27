@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script type="importmap">{"imports":{"three":"/ms/node_modules/three/build/three.module.js","three/addons/":"/ms/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+// Look-dev views of one library model (xp model check <name>): front (reference camera), three-quarter, side, grazing light.
+// Neutral studio: soft key + fill + rim, RoomEnvironment reflections, soft contact shadow, mid-grey backdrop (img2threejs look-dev rule:
+// judge a model under neutral, grazing and reference-matched light before calling it done).
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { preload, instance } from '/ms/backends/three/library3d.js';
+const q = new URLSearchParams(location.search), name = q.get('ten'), S = +(q.get('size') || 768);
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true });
+r.setPixelRatio(1); r.setSize(S, S, false); r.toneMapping = THREE.AgXToneMapping; r.toneMappingExposure = 1.1; r.outputColorSpace = THREE.SRGBColorSpace;
+r.shadowMap.enabled = true; r.shadowMap.type = THREE.VSMShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8e939b);
+scene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), .04).texture; scene.environmentIntensity = .6;
+const hemi = new THREE.HemisphereLight(0xdfe6f2, 0x4a4036, .6), key = new THREE.DirectionalLight(0xfff1dc, 2.4), fill = new THREE.DirectionalLight(0xc8d8ff, .7), rim = new THREE.DirectionalLight(0xffffff, 1.2);
+key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 8; key.shadow.blurSamples = 16; key.shadow.bias = -.0005; key.shadow.normalBias = .02;
+scene.add(hemi, key, key.target, fill, rim);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: .28 })); floor.receiveShadow = true; scene.add(floor);
+const cam = new THREE.PerspectiveCamera(28, 1, .01, 500);
+let I = null, H = 1, W = 1;
+window.VIEWS = ['front', 'three-quarter', 'side', 'back', 'grazing'];
+window.render = (view = 'front', t = 0) => {
+  I.update({ t, lt: t, D: 4, u: Math.min(1, t / 4) });
+  const c = new THREE.Vector3(0, H * .5, 0), d = Math.max(H, W) * 2.3 + .5, el = view === 'front' ? .05 : view === 'side' ? .08 : .22, yaw = { front: 0, 'three-quarter': .62, side: Math.PI / 2, back: Math.PI, grazing: .62 }[view] ?? 0;
+  cam.position.set(Math.sin(yaw) * Math.cos(el) * d, c.y + Math.sin(el) * d, Math.cos(yaw) * Math.cos(el) * d); cam.lookAt(c);
+  const graze = view === 'grazing'; key.intensity = graze ? 3.4 : 2.4; fill.intensity = graze ? .12 : .7; hemi.intensity = graze ? .15 : .6; scene.environmentIntensity = graze ? .2 : .6;
+  key.position.copy(graze ? new THREE.Vector3(-d, H * .35, d * .25) : new THREE.Vector3(d * .6, d * .9, d * .8)); key.target.position.copy(c);
+  fill.position.set(-d, d * .4, d * .6); rim.position.set(-d * .3, d * .6, -d);
+  const ext = Math.max(H, W) * 1.5; Object.assign(key.shadow.camera, { left: -ext, right: ext, top: ext, bottom: -ext, near: .01, far: d * 4 }); key.shadow.camera.updateProjectionMatrix();
+  r.render(scene, cam); return r.domElement.toDataURL('image/jpeg', .92);
+};
+(async () => {
+  await preload([name]); I = instance(name, {}); scene.add(I.group);
+  const b = new THREE.Box3().setFromObject(I.group), sz = b.getSize(new THREE.Vector3()); H = sz.y; W = Math.max(sz.x, sz.z);
+  window.META = { ...I.meta, size: [+sz.x.toFixed(3), +sz.y.toFixed(3), +sz.z.toFixed(3)] };
+  let tris = 0; I.group.traverse(m => { if (m.isMesh) { const g = m.geometry; if (g.attributes.position) tris += (g.index ? g.index.count : g.attributes.position.count) / 3 * (m.count || 1); } }); window.META.triangles = Math.round(tris);
+  window.READY = true;
+})().catch(e => { window.ERR = String(e && e.stack || e); });
+</script>

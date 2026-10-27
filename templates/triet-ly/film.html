@@ -1,0 +1,92 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<style>
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-Black.ttf);font-weight:900}
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:OSW;src:url("/root/.mega-shot/fonts/Oswald[wght].ttf");font-weight:200 700}
+</style>
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/fx.js"></script><script src="/ms/core/layers.js"></script><script src="/ms/core/stills.js"></script><script src="/ms/core/film.js"></script>
+<script type="importmap">{"imports":{"three":"/ms/node_modules/three/build/three.module.js","three/addons/":"/ms/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+// Template "triet-ly" (philosophy / motivation quotes): full-frame stylised 3D set per scene (sets3d.js) + quote card + stamp line.
+// Scene keys: canh3d: <set id> | { kieu: <set id>, ...options }   (ids: see engine/backends/three/sets3d.js)
+//   or real footage: tim: [...] (xp assets — Pixabay/Pexels search, or `tep` from xp clip) → the scene plays its clips (slow push-in,
+//   shade for the text, a small punch on every in-scene cut); quote/title/stamp work the same on both kinds of scene
+//   chu: hook title (scene title, top) · trich: { chu: "quote", nguon: "Book, ch.", luc: "<first spoken word of the quote>" }
+//   chu_thich: "ẢNH LAN TRUYỀN · X · 10/2026" source chip (quoted evidence) · chot: "STAMP LINE" (gold stamp, appears at word `chot_luc` or 35% into the scene)
+//   so: { tu, den, don_vi, nhan, luc } big counting number · so_sanh: { a: { nhan, gt }, b: { nhan, gt }, don_vi: '%' } two growing bars (guess vs reality)
+// phong_cach: { nhan: "SERIES · 1/3" (corner label), subtitle_style, title_style, nguoi3d: true | { gioi, da, … } (stylised people instead of mannequins) }
+// scene canh3d.nguoi: { gioi: nam|nu, da: 1–6, toc, mau_toc, ao, quan, vay, tay_ao } → the main figure of that scene
+import { studio } from '/ms/backends/three/sets3d.js';
+let S3 = null, WORDS = [];
+const { clamp } = MS.u, eo3 = u => 1 - Math.pow(1 - clamp(u), 3);
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
+function hitW(c, text, fb) { const t0 = c.t - c.lt, w0 = norm(String(text).split(/\s+/)[0]); if (w0) for (const w of WORDS) if (w[1] >= t0 - .05 && w[1] < t0 + c.D && norm(w[0]) === w0) return w[1] - t0; return fb; }
+const GOLD = '#ffd36a';
+function wrap(x, s, maxW) { const out = []; let cur = ''; for (const w of s.split(' ')) { const t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; }
+// quote card: dark band at the top, gold quotation mark, lines rise in one by one, source in small caps under a gold rule
+function quote(x, c, q) {
+  const t0 = q.luc ? hitW(c, q.luc, .5) : .5, tt = c.lt - t0; if (tt < 0) return;
+  const W = c.W, size = Math.round(W * .058), maxW = W * .8; x.save(); x.font = `800 ${size}px BVP`; const L = wrap(x, String(q.chu).normalize('NFC'), maxW), lh = size * 1.32;
+  const top = c.H * .13, h = L.length * lh + size * 2.6, a = eo3(tt / .5);
+  const g = x.createLinearGradient(0, top - size * 1.6, 0, top + h + size); g.addColorStop(0, 'rgba(5,7,12,0)'); g.addColorStop(.18, `rgba(5,7,12,${.62 * a})`); g.addColorStop(.82, `rgba(5,7,12,${.62 * a})`); g.addColorStop(1, 'rgba(5,7,12,0)');
+  x.fillStyle = g; x.fillRect(0, top - size * 1.6, W, h + size * 2.6);
+  x.globalAlpha = a; x.fillStyle = GOLD; x.font = `900 ${size * 2.6}px Georgia, serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('“', W / 2, top + size * .1);
+  x.font = `800 ${size}px BVP`; L.forEach((l, i) => { const u = eo3((tt - .15 - i * .14) / .45); if (u <= 0) return; x.globalAlpha = u; x.shadowColor = 'rgba(0,0,0,.7)'; x.shadowBlur = 16; x.fillStyle = '#fbf3e2'; x.fillText(l, W / 2, top + size * 1.5 + i * lh + (1 - u) * 24); });
+  const u = eo3((tt - .3 - L.length * .14) / .5); if (u > 0) { const y = top + size * 1.5 + L.length * lh + size * .25; x.globalAlpha = u; x.shadowBlur = 0; x.fillStyle = GOLD; x.fillRect(W / 2 - W * .06 * u, y, W * .12 * u, 3);
+    x.font = `500 ${Math.round(size * .62)}px OSW`; x.fillStyle = '#e8c27a'; x.fillText(String(q.nguon || '').toUpperCase(), W / 2, y + size * .75); }
+  x.restore();
+}
+// so: { tu, den, don_vi, nhan, dau, thap_phan, luc (spoken word | seconds), dai (count time, s), y (0–1) } → big number counting up (experiment results, days, minutes)
+function counter(x, c, s) {
+  const t0 = typeof s.luc === 'string' ? hitW(c, s.luc, c.D * .2) : (s.luc ?? c.D * .15), tt = c.lt - t0; if (tt < 0) return;
+  const k = eo3(tt / (s.dai ?? 1.6)), v = (s.tu ?? 0) + ((s.den ?? 0) - (s.tu ?? 0)) * k, n = (s.dau || '') + v.toFixed(s.thap_phan ?? 0).replace('.', ',');
+  const W = c.W, H = c.H, size = Math.round(W * .23), y = H * (s.y ?? .43), a = eo3(tt / .3), pop = 1 + .08 * Math.max(0, 1 - Math.abs(tt - (s.dai ?? 1.6)) / .18);
+  x.save(); const g = x.createRadialGradient(W / 2, y, 0, W / 2, y, W * .55); g.addColorStop(0, `rgba(5,7,12,${.62 * a})`); g.addColorStop(1, 'rgba(5,7,12,0)'); x.fillStyle = g; x.fillRect(0, y - W * .55, W, W * 1.1);
+  x.globalAlpha = a; x.textAlign = 'center'; x.textBaseline = 'middle';
+  if (s.nhan) { x.font = `600 ${Math.round(W * .042)}px OSW`; x.fillStyle = GOLD; x.fillText(String(s.nhan).toUpperCase(), W / 2, y - size * .78); }
+  x.translate(W / 2, y); x.scale(pop, pop); x.font = `900 ${size}px BVP`; x.shadowColor = 'rgba(255,190,80,.55)'; x.shadowBlur = 40; x.fillStyle = '#fff8ea'; x.fillText(n, 0, 0);
+  if (s.don_vi) { x.shadowBlur = 0; x.font = `800 ${Math.round(size * .3)}px BVP`; x.fillStyle = GOLD; x.fillText(String(s.don_vi), 0, size * .68); }
+  x.restore(); }
+// so_sanh: { a: { nhan, gt }, b: { nhan, gt }, don_vi: '%', toi_da, luc } → two bars grow one after the other (what you guess vs what really happens)
+function compare(x, c, s) {
+  const t0 = typeof s.luc === 'string' ? hitW(c, s.luc, c.D * .15) : (s.luc ?? c.D * .12), tt = c.lt - t0; if (tt < 0) return;
+  const W = c.W, H = c.H, M = s.toi_da || Math.max(s.a.gt, s.b.gt) * 1.15, bw = W * .2, base = H * .6, hMax = H * .26, du = s.don_vi ?? '';
+  x.save(); const g = x.createLinearGradient(0, base - hMax - H * .1, 0, base + H * .08); g.addColorStop(0, 'rgba(5,7,12,0)'); g.addColorStop(.3, 'rgba(5,7,12,.55)'); g.addColorStop(1, 'rgba(5,7,12,.55)');
+  x.globalAlpha = eo3(tt / .3); x.fillStyle = g; x.fillRect(0, base - hMax - H * .1, W, hMax + H * .18); x.textAlign = 'center';
+  [[s.a, W * .32, 0, 'rgba(255,255,255,.5)'], [s.b, W * .68, (s.cach ?? 1.2), GOLD]].forEach(([b, cx, d, col]) => { const k = eo3((tt - d) / 1.1); if (k <= 0) return;
+    const h = hMax * b.gt / M * k; x.globalAlpha = Math.min(1, k * 3); x.fillStyle = col; x.fillRect(cx - bw / 2, base - h, bw, h);
+    x.fillStyle = '#fff'; x.font = `900 ${Math.round(W * .085)}px BVP`; x.textBaseline = 'bottom'; x.fillText(Math.round(b.gt * k) + du, cx, base - h - W * .015);
+    x.font = `700 ${Math.round(W * .036)}px BVP`; x.textBaseline = 'top'; x.fillStyle = '#f2ead8'; wrap(x, String(b.nhan), bw * 1.6).forEach((l, i) => x.fillText(l, cx, base + W * .02 + i * W * .045)); });
+  x.restore(); }
+let BOOK = {}; const SEQ = {}, IMG = {};
+// real-footage scene: clip frames (cover), slow push-in, a punch on each in-scene cut, darker top/bottom so titles and subtitles read
+async function footage(x, c) { const k = MS.u.eio(clamp(c.lt / c.D)), nh = MS.fx && MS.fx.nhan ? MS.fx.nhan(c.lt, (BOOK[c.id] || {}).cat || [], .5) : { z: 1, dx: 0, dy: 0 }, z = (c.data.zoom0 ?? 1.02) + (c.data.zoom ?? .07) * k;
+  x.save(); x.translate(c.W / 2 + nh.dx, c.H / 2 + nh.dy); x.scale(z * nh.z, z * nh.z); x.translate(-c.W / 2, -c.H / 2); if (c.data.loc) x.filter = c.data.loc; await SEQ[c.id](x, c); x.restore(); x.filter = 'none';
+  const g = x.createLinearGradient(0, 0, 0, c.H); g.addColorStop(0, 'rgba(5,7,12,.55)'); g.addColorStop(.3, 'rgba(5,7,12,.08)'); g.addColorStop(.62, 'rgba(5,7,12,.1)'); g.addColorStop(1, 'rgba(5,7,12,.6)');
+  x.fillStyle = g; x.fillRect(0, 0, c.W, c.H); }
+// still image (quoted evidence, archive photo): blurred dark cover copy behind, the whole picture contained on top with a slow push-in
+function still(x, c, im) { const k = MS.u.eio(clamp(c.lt / c.D)), cw = Math.max(c.W / im.width, c.H / im.height) * 1.08, fw = Math.min(c.W / im.width, c.H * .82 / im.height) * ((c.data.zoom0 ?? 1) + (c.data.zoom ?? .05) * k);
+  x.save(); x.filter = 'blur(28px) brightness(.45)'; x.drawImage(im, (c.W - im.width * cw) / 2, (c.H - im.height * cw) / 2, im.width * cw, im.height * cw); x.filter = 'none'; x.restore();
+  const w = im.width * fw, h = im.height * fw; x.save(); x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 40; x.imageSmoothingQuality = 'high'; x.drawImage(im, (c.W - w) / 2, (c.H - h) / 2 - c.H * .02, w, h); x.restore(); }
+function corner(x, c) { const n = (MS.TL.style || {}).nhan; if (!n) return; x.save(); x.font = `600 ${Math.round(c.W * .03)}px OSW`; x.textBaseline = 'top'; x.fillStyle = 'rgba(255,211,106,.85)'; x.fillRect(c.W * .07, c.H * .062, 4, c.W * .036); x.fillStyle = 'rgba(255,255,255,.82)'; x.fillText(n, c.W * .07 + 14, c.H * .062); x.restore(); }
+MS.film({
+  gpu: () => S3 ? S3.gpu() : 'canvas2d', vignette: false,
+  prepare: async TL => { BOOK = await (await fetch('giay_phep.json')).json().catch(() => ({}));
+    for (const s of TL.scenes) { const b = BOOK[s.id]; if (!b || !(s.data || {}).tim) continue; if (b.khung) SEQ[s.id] = MS.seq(`build/layers/${s.id}`, { ext: 'jpg' }); else if (b.loai === 'anh' && b.file) IMG[s.id] = await MS.img(b.file); }
+    S3 = studio({ ...MS.FORMATS[TL.format], nguoi: (TL.style || {}).nguoi3d }); await S3.preload(TL); WORDS = (TL.subs || []).flatMap(s => s.w || []).map(w => [w[0], w[1], w[2]]); await Promise.all(['800 40px BVP', '900 40px BVP', '500 40px OSW'].map(f => document.fonts.load(f).catch(() => console.warn('font missing: ' + f + ' (xp setup --install fonts)')))); },
+  scenes: { '*': { async draw(x, c) { const d = c.data, k = typeof d.canh3d === 'string' ? { kieu: d.canh3d } : (d.canh3d || { kieu: 'hai-ngua' });
+    if (SEQ[c.id]) await footage(x, c);
+    else if (IMG[c.id]) still(x, c, IMG[c.id]);
+    else S3.draw(x, c.id, k.kieu, { lt: c.lt, D: c.D, t: c.t }, k);
+    if (c.ra) return; corner(x, c);
+    if (d.chu_thich) { const t = String(d.chu_thich).toUpperCase(), fs = Math.round(c.W * .026); x.save(); x.font = `600 ${fs}px OSW`; const w = x.measureText(t).width + fs * 1.4, y0 = c.H * .105, a = 1;   // source chip for quoted evidence (viral photo, archive)
+      x.globalAlpha = a; x.fillStyle = 'rgba(10,12,16,.78)'; x.fillRect(c.W * .07, y0, w, fs * 1.9); x.fillStyle = '#ffd36a'; x.fillRect(c.W * .07, y0, 4, fs * 1.9); x.fillStyle = '#fbf3e2'; x.textBaseline = 'middle'; x.fillText(t, c.W * .07 + fs * .7, y0 + fs * .98); x.restore(); }
+    if (d.chu) { const fo = d.chu_giu ? 1 - clamp((c.lt - d.chu_giu) / .4) : 1; if (fo > 0) { x.save(); x.globalAlpha = fo; MS.title(x, d.chu, c.W / 2, c.H * .2, .25, c.lt, Math.round(c.W * .085), '#fff', d.title_style); x.restore(); } }   // chu_giu: title fades out after N s
+    if (d.trich) quote(x, c, d.trich);
+    if (d.so) counter(x, c, d.so);
+    if (d.so_sanh) compare(x, c, d.so_sanh);
+    if (d.chot) { const t0 = d.chot_luc ? hitW(c, d.chot_luc, c.D * .35) : c.D * .35; MS.title(x, d.chot, c.W / 2, c.H * .3, t0, c.lt, Math.round(c.W * .1), GOLD, 'stamp'); }
+  } } },
+});
+</script>

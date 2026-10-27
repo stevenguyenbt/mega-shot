@@ -1,0 +1,185 @@
+<!doctype html>
+<!-- mega-shot · HyperFrames news template (one composition, scene kind chosen by variables.kieu).
+     Rendered per scene by `xp hf` → RGBA PNG sequence → drawn by templates/tin-tuc/film.html under mega-shot subtitles.
+     Variables (window.__hyperframes.getVariables()): kieu, dur, nen (opaque background), kenh, ngay, ticker[], W, H + per-kind data.
+     Times in data are seconds inside the scene (xp resolves `luc: "<word>"` to the moment the narration says that word). -->
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, height=1920" />
+<script src="gsap.min.js"></script>
+<style>
+@font-face { font-family: BVP; src: url(fonts/BeVietnamPro-Black.ttf); font-weight: 900; }
+@font-face { font-family: BVP; src: url(fonts/BeVietnamPro-ExtraBold.ttf); font-weight: 800; }
+@font-face { font-family: OSW; src: url("fonts/Oswald.ttf"); font-weight: 200 700; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: transparent; }
+#root { position: relative; width: 1080px; height: 1920px; overflow: hidden; font-family: BVP, sans-serif; color: #f4f6fb; }
+.bg { position: absolute; inset: 0; background: radial-gradient(1200px 900px at 50% 38%, #18223d 0%, #0b1020 60%, #070a14 100%); }
+.grid { position: absolute; inset: -40px; background-image: linear-gradient(rgba(120,150,220,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(120,150,220,.07) 1px, transparent 1px); background-size: 60px 60px; }
+/* top brand bar + date + live dot */
+.bar { position: absolute; left: 60px; right: 60px; top: 150px; height: 74px; display: flex; align-items: center; gap: 18px; }
+.brand { background: #e5383b; color: #fff; font: 900 34px BVP; padding: 10px 22px; letter-spacing: .04em; transform-origin: left center; }
+.date { font: 500 30px OSW; color: #c9d3ea; letter-spacing: .08em; }
+.live { margin-left: auto; display: flex; align-items: center; gap: 10px; font: 600 26px OSW; letter-spacing: .12em; color: #ffd0d0; }
+.live i { width: 16px; height: 16px; border-radius: 50%; background: #ff3b3b; box-shadow: 0 0 18px #ff3b3b; }
+/* ticker */
+.tick { position: absolute; left: 0; right: 0; top: 236px; height: 58px; background: rgba(8,12,24,.86); border-top: 2px solid #e5383b; overflow: hidden; }
+.tick .lab { position: absolute; left: 0; top: 0; bottom: 0; width: 190px; background: #ffb703; color: #111; font: 900 26px BVP; display: flex; align-items: center; justify-content: center; z-index: 2; }
+.tick .run { position: absolute; left: 210px; top: 9px; white-space: nowrap; font: 800 30px BVP; color: #e8edf8; }
+.tick .run b { color: #ffb703; margin: 0 26px; }
+/* kinds */
+.k { position: absolute; inset: 0; }
+.kicker { display: inline-block; background: #e5383b; color: #fff; font: 900 40px BVP; padding: 8px 22px; letter-spacing: .06em; }
+.h1 { font: 900 92px/1.08 BVP; letter-spacing: -.01em; }
+.h1 .w { display: inline-block; overflow: hidden; vertical-align: top; }
+.h1 .w span { display: inline-block; }
+.sub { font: 800 40px/1.3 BVP; color: #c9d3ea; }
+.acc { color: #ffb703; }
+.rule { height: 6px; background: linear-gradient(90deg, #e5383b, #ffb703); transform-origin: left; }
+/* map */
+svg.map { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+svg.map .c { fill: #182036; stroke: #3a4560; stroke-width: 1.4; }
+svg.map .m { fill: #24467d; stroke: #8fb2ff; stroke-width: 2.2; }
+svg.map .tc { fill: url(#hatch); stroke: #8fb2ff; stroke-width: 2; stroke-dasharray: 8 6; }
+.pin { position: absolute; transform: translate(-50%, -50%); }
+.pin .dot { width: 26px; height: 26px; border-radius: 50%; border: 4px solid #fff; }
+.pin .ring { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 4px solid; }
+.pin .lab { position: absolute; left: 30px; top: -26px; white-space: nowrap; background: rgba(7,10,20,.85); padding: 6px 14px; border-left: 6px solid; }
+.pin .lab .t { font: 900 34px BVP; }
+.pin .lab .n { font: 600 26px OSW; color: #c9d3ea; letter-spacing: .03em; }
+.pin.left .lab { left: auto; right: 30px; border-left: none; border-right: 6px solid; text-align: right; }
+.mapttl { position: absolute; left: 60px; right: 60px; top: 330px; }
+.note { position: absolute; left: 60px; right: 60px; bottom: 300px; font: 600 26px OSW; color: #9aa6c4; letter-spacing: .02em; }
+/* stats */
+.stat { position: absolute; left: 60px; right: 60px; }
+.stat .num { font: 900 190px/1 BVP; color: #ffb703; letter-spacing: -.02em; }
+.stat .lbl { font: 800 46px/1.2 BVP; margin-top: 6px; }
+.stat .src { font: 600 28px OSW; color: #9aa6c4; margin-top: 10px; letter-spacing: .04em; }
+/* two sides */
+.side { position: absolute; left: 60px; right: 60px; padding: 34px 38px; background: rgba(12,17,32,.92); border-left: 10px solid; }
+.side .who { font: 900 36px BVP; letter-spacing: .06em; }
+.side .say { font: 800 44px/1.3 BVP; margin-top: 12px; }
+.verdict { position: absolute; left: 60px; right: 60px; text-align: center; font: 800 36px BVP; color: #111; background: #ffb703; padding: 18px 20px; }
+/* timeline */
+.tl { position: absolute; left: 110px; right: 60px; }
+.tl .line { position: absolute; left: -38px; top: 10px; width: 6px; background: #3a4560; transform-origin: top; }
+.tl .it { position: relative; margin-bottom: 46px; }
+.tl .it::before { content: ''; position: absolute; left: -48px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: #e5383b; border: 4px solid #fff; }
+.tl .d { font: 600 32px OSW; color: #ffb703; letter-spacing: .06em; }
+.tl .x { font: 800 42px/1.25 BVP; }
+.src-list { position: absolute; left: 60px; right: 60px; font: 600 30px/1.6 OSW; color: #c9d3ea; }
+/* huashu-motion techniques (editorial-collage · data-story · kinetic-type) */
+.hl { position: relative; display: inline-block; z-index: 0; }
+.hl .pill { position: absolute; left: -12px; right: -12px; top: 10%; bottom: 2%; background: #e5383b; border-radius: 16px; z-index: -1; transform-origin: left center; }
+.hl .acc { color: #fff; }
+.stat .num { font-variant-numeric: tabular-nums; display: inline-block; transform-origin: left bottom; }
+.stat .ul { height: 6px; width: 260px; margin-top: 14px; background: #ffb703; transform-origin: left; }
+.side { box-shadow: 0 18px 40px rgba(0,0,0,.45); }
+.stamp { position: absolute; left: 50%; width: max-content; max-width: 860px; padding: 14px 30px; border: 7px solid #ff4d4d; color: #ff4d4d; font: 900 34px/1.25 BVP; letter-spacing: .05em; text-transform: uppercase; text-align: center; background: rgba(8,10,18,.6); border-radius: 10px; }
+.chap { font: 600 28px OSW; color: #ffb703; letter-spacing: .1em; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="tin" data-start="0" data-duration="__DUR__" data-width="1080" data-height="1920">
+  <div id="scene" class="clip" data-start="0" data-duration="__DUR__" style="position:absolute;inset:0"></div>
+</div>
+<script>
+(function () {
+  const V = Object.assign({ kieu: 'tieu-de', dur: 6, nen: true, kenh: 'BẢN TIN', ngay: '', ticker: [] }, (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {});
+  const D = +V.dur, S = document.getElementById('scene'), h = (tag, cls, html, st) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (st) e.setAttribute('style', st); return e; };
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\*\*(.+?)\*\*/g, '<span class="acc">$1</span>');
+  const tl = gsap.timeline({ paused: true }); window.__timelines = window.__timelines || {}; window.__timelines['tin'] = tl;
+  if (V.nen) { S.appendChild(h('div', 'bg')); const g = S.appendChild(h('div', 'grid')); tl.fromTo(g, { x: 0, y: 0 }, { x: -60, y: -30, duration: D, ease: 'none' }, 0); }
+  const K = S.appendChild(h('div', 'k'));
+  // ---- kinds ----
+  const words = (el, text, t0, step = .07) => { let bold = false; const out = [];             // split words first, then style (**bold** may span several words)
+    let grp = null;
+    for (const raw of String(text ?? '').split(/\s+/).filter(Boolean)) { let w = raw, open = false, close = false;
+      if (w.startsWith('**')) { w = w.slice(2); open = true; } { const m = /\*\*([,.;:!?…”"')]*)$/.exec(w); if (m) { w = w.slice(0, m.index) + m[1]; close = true; } }   // "**word**," — punctuation after the closing **
+      if (open) { bold = true; grp = []; } const t = w.replace(/&/g, '&amp;').replace(/</g, '&lt;'), sp = `<span class="w"><span${bold ? ' class="acc"' : ''}>${t}</span></span>`;
+      if (grp) grp.push(sp); else out.push(sp);
+      if (close) { bold = false; out.push(`<span class="hl"><i class="pill"></i>${grp.join(' ')}</span>`); grp = null; } }
+    if (grp) out.push(`<span class="hl"><i class="pill"></i>${grp.join(' ')}</span>`);
+    el.innerHTML = out.join(' ');
+    const ws = [...el.querySelectorAll('.w > span')];
+    if (t0 >= 0) ws.forEach((s, i) => tl.from(s, { yPercent: 110, duration: .55, ease: 'power3.out' }, t0 + i * step));   // mask reveal (rise from a line)
+    el.querySelectorAll('.hl').forEach(g => { const i = ws.indexOf(g.querySelector('.w > span')), at = t0 >= 0 ? t0 + i * step + .3 : .25;   // pill highlight: once the words are up
+      tl.fromTo(g.querySelector('.pill'), { scaleX: 0 }, { scaleX: 1, duration: .35, ease: 'power3.out', immediateRender: true }, at); }); };
+  const B = {
+    'tieu-de'() { const box = K.appendChild(h('div', null, null, 'position:absolute;left:60px;right:60px;top:560px'));
+      const cover = !!V.dau;                                                      // first scene: headline readable on frame 0 (TikTok/Shorts cover), then a slow push
+      const kk = box.appendChild(h('div', 'kicker', esc(V.nhan || 'TIN NÓNG'))); if (!cover) tl.from(kk, { scaleX: 0, transformOrigin: 'left', duration: .45, ease: 'expo.out' }, .1);
+      const r = box.appendChild(h('div', 'rule', null, 'margin:28px 0 30px;width:300px')); if (!cover) tl.from(r, { scaleX: 0, duration: .6, ease: 'power2.out' }, .3);
+      (V.dong || []).forEach((ln, i) => { const e = box.appendChild(h('div', 'h1', '', 'margin-bottom:10px')); words(e, ln, cover ? -1 : .45 + i * .32); });
+      if (cover) tl.fromTo(box, { scale: 1.06, transformOrigin: 'left top' }, { scale: 1, duration: 1.2, ease: 'power3.out' }, 0);
+      if (V.phu) { const p = box.appendChild(h('div', 'sub', esc(V.phu), 'margin-top:34px')); tl.from(p, { opacity: 0, y: 30, duration: .6, ease: 'power2.out' }, .9 + (V.dong || []).length * .3); }
+      tl.to(box, { y: -20, duration: D, ease: 'none' }, 0); },
+    'ban-do'() { const M = V.map || { nuoc: [] }, NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'map'); svg.setAttribute('viewBox', '0 0 1080 1920');
+      svg.innerHTML = '<defs><pattern id="hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="14" height="14" fill="#24467d"/><line x1="0" y1="0" x2="0" y2="14" stroke="#e5383b" stroke-width="5" opacity=".65"/></pattern></defs>';
+      const g = document.createElementNS(NS, 'g'); svg.appendChild(g);
+      for (const n of M.nuoc) { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', n.d); p.setAttribute('class', n.tranh_chap ? 'tc' : n.chinh ? 'm' : 'c'); g.appendChild(p); }
+      const MW = K.appendChild(h('div', null, null, 'position:absolute;inset:0')); MW.appendChild(svg); const z = V.zoom || [1, 1.06], fc = V.tam || [540, 900];   // map + pins zoom together
+      tl.fromTo(MW, { scale: z[0], transformOrigin: `${fc[0]}px ${fc[1]}px` }, { scale: z[1], duration: D, ease: 'sine.inOut' }, 0);
+      tl.from(svg, { opacity: 0, duration: .5 }, 0);
+      if (V.tieu_de) { const t = K.appendChild(h('div', 'mapttl')); const e = t.appendChild(h('div', 'h1', '', 'font-size:66px')); words(e, V.tieu_de, .2, .05); if (V.phu) { const p = t.appendChild(h('div', 'sub', esc(V.phu), 'margin-top:14px;font-size:34px')); tl.from(p, { opacity: 0, duration: .5 }, .7); } }
+      (M.diem || []).forEach((d, i) => { const col = d.mau || '#e5383b', at = d.t ?? (.6 + i * .5); const P = MW.appendChild(h('div', 'pin' + (d.trai ? ' left' : ''), null, `left:${d.x}px;top:${d.y}px`));
+        const dot = P.appendChild(h('div', 'dot', null, `background:${col}`)), ring = P.appendChild(h('div', 'ring', null, `border-color:${col}`));
+        const lab = P.appendChild(h('div', 'lab', `<div class="t">${esc(d.ten)}</div>` + (d.nhan ? `<div class="n">${esc(d.nhan)}</div>` : ''), `border-color:${col};${d.dy != null ? `top:${d.dy - 26}px` : ''}`));
+        tl.from(dot, { scale: 0, duration: .45, ease: 'back.out(3)' }, at); tl.from(lab, { opacity: 0, x: d.trai ? 30 : -30, duration: .45, ease: 'power3.out' }, at + .12);
+        for (let k = 0; k < Math.ceil((D - at) / 1.4); k++) tl.fromTo(ring, { scale: 1, opacity: .9 }, { scale: 4.5, opacity: 0, duration: 1.3, ease: 'power1.out', immediateRender: false }, at + k * 1.4); });
+      // label auto-layout (deterministic: measured once before any animation): flip side at the frame edge, then push overlapping labels down
+      const layout = () => { const labs = [...MW.querySelectorAll('.pin')].map(P => ({ P, L: P.querySelector('.lab') })), R = el => el.getBoundingClientRect(), placed = [...MW.querySelectorAll('.pin .dot')].map(R);   // dots are obstacles too
+      for (const o of labs) { o.L.style.top = o.L.dataset.top0 ?? (o.L.dataset.top0 = o.L.style.top || ''); }   // re-run from the authored positions
+      for (const o of labs) { let r = R(o.L);
+        if (r.right > 1050 && !o.P.classList.contains('left')) { o.P.classList.add('left'); r = R(o.L); }
+        if (r.left < 30 && o.P.classList.contains('left')) { o.P.classList.remove('left'); r = R(o.L); }
+        for (let k = 0; k < 8 && placed.some(q => !(r.right < q.left - 6 || r.left > q.right + 6 || r.bottom < q.top - 6 || r.top > q.bottom + 6)); k++) {
+          o.L.style.top = (parseFloat(getComputedStyle(o.L).top) + r.height * .55) + 'px'; r = R(o.L); }
+        placed.push(r); } };
+      layout(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);   // widths are only right once Be Vietnam Pro has loaded
+      if (V.chu_thich) { const n = K.appendChild(h('div', 'note', esc(V.chu_thich))); tl.from(n, { opacity: 0, duration: .6 }, 1); } },
+    'con-so'() { (V.so || []).forEach((s, i) => { const at = s.t ?? (.3 + i * 1.6), top = (V.top ?? 520) + i * (V.buoc ?? 400);
+        const box = K.appendChild(h('div', 'stat', null, `top:${top}px`)), num = box.appendChild(h('div', 'num', '0'));
+        box.appendChild(h('div', 'lbl', esc(s.nhan))); const ul = box.appendChild(h('div', 'ul')); if (s.nguon) box.appendChild(h('div', 'src', esc(s.nguon)));
+        const land = at + (s.dem ?? 1.4);
+        tl.fromTo(num, { scale: 1.14 }, { scale: 1, duration: .45, ease: 'back.out(3)', immediateRender: false }, land);   // lands on the exact number
+        tl.fromTo(ul, { scaleX: 0 }, { scaleX: 1, duration: .4, ease: 'power3.out', immediateRender: true }, land - .05);
+        const le = +s.le || 0, o = { v: 0 }, fmt = v => (s.tien_to || '') + (le ? (+v.toFixed(le)).toLocaleString('vi-VN', { minimumFractionDigits: le, maximumFractionDigits: le }) : Math.round(v).toLocaleString('vi-VN')) + (s.hau_to || '');   // le = decimals (3,1%)
+        tl.from(box, { opacity: 0, y: 40, duration: .5, ease: 'power3.out' }, at);
+        tl.to(o, { v: +s.gia_tri, duration: s.dem ?? 1.4, ease: 'power2.out', onUpdate: () => { num.textContent = fmt(o.v); } }, at); tl.set(num, { textContent: fmt(0) }, 0); }); },
+    'hai-phia'() { const a = V.trai || {}, b = V.phai || {}, top = V.top ?? 520;
+      const A = K.appendChild(h('div', 'side', `<div class="who" style="color:${a.mau || '#ff6b6b'}">${esc(a.ai)}</div><div class="say">${esc(a.noi)}</div>`, `top:${top}px;border-color:${a.mau || '#ff6b6b'}`));
+      const B2 = K.appendChild(h('div', 'side', `<div class="who" style="color:${b.mau || '#7fb2ff'}">${esc(b.ai)}</div><div class="say">${esc(b.noi)}</div>`, `top:${top + (V.khoang ?? 360)}px;border-color:${b.mau || '#7fb2ff'}`));
+      tl.fromTo(A, { x: -1100, rotation: -4 }, { x: 0, rotation: -1.2, duration: .7, ease: 'power3.out', immediateRender: true }, a.t ?? .3);
+      tl.fromTo(B2, { x: 1100, rotation: 4 }, { x: 0, rotation: 1, duration: .7, ease: 'power3.out', immediateRender: true }, b.t ?? 2);
+      tl.to(A, { opacity: .55, duration: .4 }, (b.t ?? 2) + .1);                  // highlight by dimming the other side
+      if (V.ket) { const at = V.ket_t ?? 3.6, st = K.appendChild(h('div', 'stamp', esc(V.ket), `top:${top + (V.khoang ?? 360) * 2 - 120}px`));
+        tl.to(A, { opacity: 1, duration: .3 }, at - .1);
+        tl.fromTo(st, { xPercent: -50, scale: 2.2, rotation: -14, opacity: 0 }, { xPercent: -50, scale: 1, rotation: -5, opacity: 1, duration: .32, ease: 'power4.in', immediateRender: true }, at);   // stamp: down onto the frame
+        tl.fromTo(K, { x: 0 }, { x: 6, duration: .05, yoyo: true, repeat: 3, ease: 'none', immediateRender: false }, at + .32); } },
+    'dong-thoi-gian'() { const box = K.appendChild(h('div', 'tl', null, `top:${V.top ?? 470}px`)), line = box.appendChild(h('div', 'line'));
+      const items = (V.muc || []).map((m, i) => { const it = box.appendChild(h('div', 'it', `<div class="d">${esc(m.ngay)}</div><div class="x">${esc(m.chu)}</div>`)); const at = m.t ?? (.4 + i * 1.2);
+        tl.from(it, { opacity: 0, x: 60, duration: .5, ease: 'power3.out' }, at); return { it, at }; });
+      items.forEach((o, i) => { if (i) tl.to(items[i - 1].it, { opacity: .4, duration: .35, ease: 'power2.out' }, o.at); });   // dim the earlier entry
+      requestAnimationFrame(() => {}); line.style.height = ((V.muc || []).length * 150) + 'px'; tl.from(line, { scaleY: 0, duration: Math.min(D * .7, 1 + (V.muc || []).length), ease: 'none' }, .2); },
+    'nguon'() { const t = K.appendChild(h('div', null, null, 'position:absolute;left:60px;right:60px;top:520px')); const e = t.appendChild(h('div', 'h1', '', 'font-size:72px')); words(e, V.tieu_de || 'Nguồn tin', .2);
+      const L = K.appendChild(h('div', 'src-list', (V.ds || []).map(s => '• ' + esc(s)).join('<br>'), 'top:760px')); tl.from(L, { opacity: 0, y: 30, duration: .7 }, .8);
+      if (V.cau_hoi) { const q = K.appendChild(h('div', 'verdict', esc(V.cau_hoi), 'top:1180px')); tl.from(q, { scale: .6, opacity: 0, duration: .5, ease: 'back.out(2)' }, V.cau_hoi_t ?? 2); } },
+  };
+  (B[V.kieu] || B['tieu-de'])();
+  // ---- chrome: brand bar, date, live dot, ticker ----
+  if (V.khung !== false) {
+    const bar = S.appendChild(h('div', 'bar')); const br = bar.appendChild(h('div', 'brand', esc(V.kenh))); bar.appendChild(h('div', 'date', esc(V.ngay)));
+    if (V.thu_tu && V.tong) bar.appendChild(h('div', 'chap', `${String(V.thu_tu).padStart(2, '0')}/${String(V.tong).padStart(2, '0')}`));   // chapter counter
+    const lv = bar.appendChild(h('div', 'live', '<i></i>' + esc(V.truc_tiep || 'CẬP NHẬT')));
+    tl.from(br, { scaleX: V.dau ? 0 : 1, duration: .4, ease: 'expo.out' }, 0);
+    for (let k = 0; k < Math.ceil(D / 1.2); k++) tl.fromTo(lv.querySelector('i'), { opacity: 1 }, { opacity: .25, duration: .6, yoyo: true, repeat: 1, ease: 'sine.inOut', immediateRender: false }, k * 1.2);
+    if ((V.ticker || []).length) { const T = S.appendChild(h('div', 'tick')); T.appendChild(h('div', 'lab', esc(V.ticker_nhan || 'ĐIỂM TIN'))); const run = T.appendChild(h('div', 'run', V.ticker.map(esc).join('<b>■</b>') + '<b>■</b>' + V.ticker.map(esc).join('<b>■</b>')));
+      tl.fromTo(run, { x: -(V.ticker_dau || 0) }, { x: -(V.ticker_dau || 0) - (V.ticker_toc || 160) * D, duration: D, ease: 'none' }, 0); }
+  }
+  tl.to({}, { duration: D }, 0);   // the timeline always spans the scene
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#fff">
+<canvas id="c" width="1280" height="720"></canvas>
+<script src="util.js"></script><script src="critters.js"></script>
+<script>
+// Preview of the five animal mascots (xp character critters → references/characters/critter-*.gif + critters-lineup.gif)
+const P = MS.critters, cv = document.getElementById('c'), g = cv.getContext('2d');
+const CH = { mochi: P.create('mochi'), bao: P.create('bao'), tuck: P.create('tuck'), fizz: P.create('fizz'), hop: P.create('hop') };
+const INFO = { mochi: ['Mochi the Cat', 'kawaii · soft gradients, cosy outline', ['#f6f0ff', '#e3d8f5']], bao: ['Bao the Panda', 'flat · clean vector shapes', ['#eaf7e6', '#cfe9c6']],
+  tuck: ['Tuck the Penguin', 'paper · cut-out craft, stop-motion', ['#e6f2fb', '#c7dff0']], fizz: ['Fizz the Fox', 'watercolor · wash + pencil line', ['#fff6ea', '#f6e2c6']], hop: ['Hop the Bunny', 'pixel · 8-bit pixel art', ['#fff0f5', '#ffd6e4']] };
+// a little performance: talk + poses + expressions, loops every 6 s
+const TRACK = [{ t: 0, pose: 'wave', expr: 'happy' }, { t: 1.4, pose: 'point', expr: 'neutral' }, { t: 2.4, pose: 'think', expr: 'surprised' }, { t: 3.4, pose: 'cheer', expr: 'love' }, { t: 4.7, pose: 'shrug', expr: 'smug' }];
+const WORDS = []; for (let k = 0; k < 30; k++) { const t0 = .3 + k * .19; if (t0 % 1.2 < .95) WORDS.push(['ba', t0, t0 + .16]); }
+const bg = (a, b) => { const gr = g.createLinearGradient(0, 0, 0, 720); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, 1280, 720); g.fillStyle = 'rgba(0,0,0,.05)'; g.fillRect(0, 600, 1280, 120); };
+const label = (name, sub) => { g.fillStyle = '#2b2b33'; g.font = '800 54px "Segoe UI", Arial'; g.fillText(name, 56, 96); g.font = '600 26px "Segoe UI", Arial'; g.fillStyle = '#6a6a78'; g.fillText(sub, 58, 140); };
+window.DUR = { mochi: 6, bao: 6, tuck: 6, fizz: 6, hop: 6, lineup: 6 };
+window.draw = (kind, t) => { g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
+  if (kind === 'lineup') { bg('#fbfaf7', '#ece7dd'); g.fillStyle = '#2b2b33'; g.font = '800 44px "Segoe UI", Arial'; g.fillText('5 animal friends · 5 drawing styles', 40, 70);
+    Object.keys(CH).forEach((k, i) => { const x = 140 + i * 250; P.draw(g, CH[k], { x, y: 640, scale: .62, t: t + i * .4, track: TRACK, words: WORDS }); g.fillStyle = '#3a3a44'; g.font = '700 22px "Segoe UI", Arial'; g.textAlign = 'center'; g.fillText(INFO[k][0], x, 700); g.textAlign = 'left'; });
+  } else { const [n, sub, [a, b]] = INFO[kind]; bg(a, b); label(n, sub); P.draw(g, CH[kind], { x: 820, y: 680, scale: 1.0, t, track: TRACK, words: WORDS }); }
+  return cv.toDataURL('image/jpeg', .9); };
+</script>

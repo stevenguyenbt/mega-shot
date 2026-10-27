@@ -1,0 +1,21 @@
+# video.yaml — one mega-shot video. Edit it, then run: xp narrate → xp preview → xp mix → xp render → xp export → xp check
+# English keys are used below; the original Vietnamese keys (ten, khung, canh, loi, …) also work — see docs/yaml-reference.md.
+name: __TEN__
+format: __KHUNG__         # 9x16 | 16x9 | 1x1
+language: en              # narration language: en, vi, zh, ja, ko, fr, es, th, id…
+loudness: -14             # target LUFS of the final mix
+voice: { sample: documentarian, volume: 0.55, speed: 1.0, seed: 1234 }   # sample in .mega-shot/voices/<sample>/ (xp voice add --archetype documentarian)
+# music: { file: <path>.mp3, volume: 0.6, duck: true }   # background music — easiest: xp music add <audio-or-video> --name bg --use
+style: { accent: "#ffc46a" }
+
+# Each scene: id (unique) + narration (spoken text). Any other key is passed to film.html as c.data.<key>.
+# Timing: gap (seconds before the line), pause (after), extra (hold longer), duration (scene without narration)
+# Transition: transition: fade | cut | tu-xu-ly (handled by film.html) ; transition_length: seconds
+scenes:
+  - id: opening
+    heading: Video title
+    narration: This is the opening line of the video.
+  - id: main-idea
+    heading: Main idea
+    extra: 1.5
+    narration: This is the main idea, and this scene holds a little longer before the end.

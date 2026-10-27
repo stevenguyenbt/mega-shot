@@ -1,0 +1,79 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#222">
+<canvas id="c"></canvas>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// Character sheet for one studio character: full body (3/4 + poses) on the left, face close-ups for every expression on the right.
+//   ?mau=<preset in MAU> | ?spec=<url-encoded JSON studio spec> | ?mo_ta=<plain-language description>   ·   window.render(t) for export
+const q = new URLSearchParams(location.search);
+const MAU = {
+  'thanh-nien': { ten: 'Kai', rang: 'nhon', phong_cach: 'anime-thanh-nien', tuoi: 'thieu-nien', gioi: 'nam', than_hinh: 'gay', da: '#fbe6d4', toc: { kieu: 'bom', mau: '#e8892e' }, mat: { mau: '#a8552e' },
+    ao: { kieu: 'so-mi', mau: '#f3f3ef' }, ca_vat: '#1c1b20', quan: { kieu: 'dai', mau: '#2a2a32' }, giay: { mau: '#2a2224', de: '#18141a', day: '#2a2224' } },
+};
+const spec = q.get('spec') ? JSON.parse(q.get('spec')) : q.get('mo_ta') ? { mo_ta: q.get('mo_ta'), phong_cach: q.get('phong_cach') || 'anime-thanh-nien' } : MAU[q.get('mau') || 'thanh-nien'];
+const EX = (q.get('bc') || 'binh,cuoi,vui,tu_tin,quyet,gian,ngac,so,nghi,buon,met,nham').split(',');
+const TEN = { binh: 'neutral', cuoi: 'smile', vui: 'grin', tu_tin: 'confident', quyet: 'determined', gian: 'angry', ngac: 'surprised', so: 'scared', nghi: 'thinking', buon: 'sad', met: 'bored / tired', nham: 'eyes closed' };
+const POSE = [['dung-ngau', 1, 'stand'], ['chi', 1.2, 'point'], ['vay', .4, 'wave'], ['gai-dau', .3, 'scratch head']];
+const cv = document.getElementById('c'), LW = 760, CW = 300, CH = 340, cols = 4, rows = Math.ceil(EX.length / cols); cv.width = LW + CW * cols; cv.height = Math.max(CH * rows, 1020) + 60;
+const x = cv.getContext('2d'), off = document.createElement('canvas'); off.width = 900; off.height = 1500; const og = off.getContext('2d');
+let ve;
+// ?bo=1 → wardrobe line-up: the same character in several outfits / poses side by side
+const BO = [['so-mi', { ao: { kieu: 'so-mi', mau: '#f3f3ef' }, ca_vat: '#1c1b20' }, 'dung-ngau', 'tu_tin'], ['hoodie', { ao: { kieu: 'hoodie', mau: '#3a3f58' }, ca_vat: null, quan: { kieu: 'dai', mau: '#4a5a7a' }, giay: { mau: '#f4f4f0', de: '#e04a3a', day: '#2a2a2a' } }, 'gai-dau', 'met'],
+  ['blazer', { ao: { kieu: 'blazer', mau: '#2c3550', mau_trong: '#f6f6f2' }, ca_vat: '#9a2a32', quan: { kieu: 'dai', mau: '#3a3a44' } }, 'chi', 'quyet'], ['rolled-sleeve shirt', { ao: { kieu: 'so-mi', mau: '#e9e4d8', xan: 1 }, ca_vat: null, quan: { kieu: 'dai', mau: '#55483c' } }, 'dung', 'vui'],
+  ['t-shirt', { ao: { kieu: 'thun', mau: '#d84a3a', chu: 'K' }, ca_vat: null, quan: { kieu: 'dai', mau: '#2e3a52' }, giay: { mau: '#f4f4f0', de: '#2a2a2a', day: '#2a2a2a' } }, 'vay', 'cuoi']];
+// ?dang=1 → body types line-up (thin → heavy, athletic, short-stocky, female)
+const DANG = [['tall thin', { than_hinh: 'cao-gay' }, 'dung-ngau', 'met'], ['thin', { than_hinh: 'om', ao: { kieu: 'so-mi', mau: '#e8e4da', xan: 1 }, ca_vat: null }, 'dung', 'so'],
+  ['average', {}, 'dung-ngau', 'tu_tin'], ['athletic', { than_hinh: 'the-thao', ao: { kieu: 'thun', mau: '#2e7a5a', chu: '' }, quan: { kieu: 'dai', mau: '#3a3a44' } }, 'dung', 'quyet'],
+  ['plump', { than_hinh: 'map', ao: { kieu: 'hoodie', mau: '#c8783a' }, ca_vat: null, quan: { kieu: 'dai', mau: '#4a5a7a' } }, 'gai-dau', 'vui'],
+  ['heavy', { than_hinh: 'beo', ao: { kieu: 'so-mi', mau: '#a8c8e8' }, ca_vat: null, toc: { kieu: 'bom', mau: '#3a2a22' } }, 'dung', 'cuoi'],
+  ['short stocky', { than_hinh: 'thap-dam', ao: { kieu: 'blazer', mau: '#5a3a2a', mau_trong: '#f4f0e6' }, ca_vat: '#2a2a2a' }, 'dung', 'gian'],
+  ['female', { gioi: 'nu', toc: { kieu: 'dai', mau: '#2a2030' }, mat: { mau: '#3a5a8a' }, ao: { kieu: 'blazer', mau: '#2c3550', mau_trong: '#f6f6f2' }, ca_vat: '#c03a4a', quan: { kieu: 'vay', mau: '#3a4a6a' }, giay: { mau: '#3a2a24', de: '#1a1416', day: '#3a2a24' } }, 'vay', 'cuoi'],
+  ['plump female', { gioi: 'nu', than_hinh: 'map', toc: { kieu: 'dai', mau: '#7a3a2a' }, mat: { mau: '#5a7a3a' }, ao: { kieu: 'thun', mau: '#f0a8b8', chu: '♥' }, ca_vat: null, quan: { kieu: 'dai', mau: '#4a5a7a' }, giay: { mau: '#f4f4f0', de: '#e88aa0', day: '#e88aa0' } }, 'dung-ngau', 'vui']];
+// ?hinh=1 → every body-shape preset of giaiphau.HINH_THE (the reference sheet archetypes), same face / style
+const TEN_HINH = { vua: 'average', gay: 'thin', om: 'skinny', 'mum-mim': 'chubby', 'cao-kheu': 'lanky', 'be-trai': 'boy', 'be-gai': 'girl', 'thieu-nien': 'teen', 'ong-gia-gay': 'thin old man',
+  'luc-si': 'strongman', 'rat-beo': 'very heavy', 'vai-rong': 'broad shoulders', 'nu-chien-binh': 'female warrior', 'thap-dam': 'short stocky', 'ba-lao-cong': 'hunched old woman', 'dong-ho-cat': 'hourglass', 'qua-le': 'pear', 'qua-tao': 'apple', 'nu-mum-mim': 'chubby female' };
+const HINH = (q.get('hinh') || '').split(',').filter(Boolean);
+if (q.get('hinh')) { const all = HINH[0] === '1' ? Object.keys(TEN_HINH) : HINH, AO = ['so-mi', 'thun', 'hoodie'], MAU = ['#f3f3ef', '#d84a3a', '#3a3f58', '#2e7a5a', '#c8783a', '#a8c8e8'];
+  BO.splice(0, BO.length, ...all.map((k, i) => { const nu = /^(be-gai|nu-|ba-|dong|qua)/.test(k);
+    return [TEN_HINH[k] || k, { hinh_the: k, ca_vat: null, toc: /gia|lao/.test(k) ? (nu ? { kieu: 'bui', mau: '#d8d2cc' } : { kieu: 'bom', mau: '#d2cdc6' }) : nu ? { kieu: 'dai', mau: ['#2a2030', '#7a3a2a', '#c8a050'][i % 3] } : { kieu: 'bom', mau: ['#e8892e', '#3a2a22', '#5a3a24'][i % 3] },
+      ao: nu ? { kieu: i % 2 ? 'thun' : 'blazer', mau: ['#2c3550', '#f0a8b8', '#6a8a5a'][i % 3], mau_trong: '#f6f6f2', chu: '' } : { kieu: AO[i % 3], mau: MAU[i % 6], chu: '' },
+      quan: nu && i % 2 === 0 ? { kieu: 'vay', mau: '#3a4a6a' } : { kieu: 'dai', mau: ['#2a2a32', '#4a5a7a', '#55483c'][i % 3] }, giay: { mau: '#3a2a24', de: '#1a1416', day: '#3a2a24' } }, /gia|lao/.test(k) ? 'chong-gay' : 'dung', 'binh']; })); }
+if (q.get('dang')) BO.splice(0, BO.length, ...DANG);
+// ?dong=1 → action library sheet (one body; &hinh_the=<preset> to test the same clips on another shape)
+const DONG = [['cool stand', 'dung-ngau', 1], ['point', 'chi', .6], ['wave', 'vay', .3], ['punch', 'dam', .3], ['guard', 'do-don', .2], ['kick', 'da', .45], ['squat', 'ngoi-xom', .7], ['kneel', 'quy', 1],
+  ['lift', 'nang', .5], ['throw', 'nem', .3], ['dig', 'dao', .6], ['cheer', 'co-vu', .15], ['stretch', 'vuon-vai', 1.2], ['dance', 'mua', .2], ['bow', 'cui-chao', .8], ['cry', 'khoc', .3],
+  ['clap', 'vo-tay', .1], ['hug knees', 'ngoi-bo-goi', 1], ['lean on cane', 'chong-gay', 1], ['jump', 'nhay', .35], ['fall', 'nga', 1.2], ['run', 'chay', .3], ['scratch head', 'gai-dau', .3], ['fold arms', 'khoanh-tay', 1]];
+// ?mat=24 → face/hair variety: portrait grid of random characters (MS.xuong.ngauNhien) · ?dan=16 → full-body random cast · &seed=N
+if (q.get('mat') || q.get('dan')) { const n = +(q.get('mat') || q.get('dan')), s0 = +(q.get('seed') || 1), BC = ['binh', 'cuoi', 'tu_tin', 'vui', 'quyet', 'buon', 'ngac', 'met'];
+  BO.splice(0, BO.length, ...Array.from({ length: n }, (_, i) => { const sp2 = MS.xuong.ngauNhien(s0 + i); return [`${sp2.toc.kieu} · ${sp2.mat_dang} · ${sp2.mat_kieu}`, sp2, 'dung', q.get('mat') ? BC[i % BC.length] : 'binh', .5]; })); }
+if (q.get('dong')) BO.splice(0, BO.length, ...DONG.map(([ten, clip, tt]) => [ten, q.get('hinh_the') ? { hinh_the: q.get('hinh_the') } : {}, clip, null, tt]));
+if (q.get('bo') || q.get('dang') || q.get('hinh') || q.get('dong') || q.get('mat') || q.get('dan')) setTimeout(async () => { const cast = {}, seen = {}; window.COLS = q.get('mat') ? 6 : q.get('dan') ? 8 : q.get('dong') ? 8 : BO.length > 10 ? 10 : BO.length; window.ROWH = q.get('mat') ? 340 : q.get('dan') ? 700 : q.get('dong') ? 680 : BO.length > 10 ? 720 : 1000; BO.forEach(([k, o], i) => { const key = JSON.stringify(o); if (seen[key] == null) { seen[key] = i; cast['b' + i] = { ve: { kieu: 'anh', xuong: q.get('mat') || q.get('dan') ? o : { ...spec, ...o } } }; } }); await MS.nv.loadCast(cast);
+  cv.width = 330 * COLS; cv.height = ROWH * Math.ceil(BO.length / COLS); window.READY = true;
+  window.render = async t => { const g = x.createLinearGradient(0, 0, 0, cv.height); g.addColorStop(0, '#2b3442'); g.addColorStop(1, '#151a22'); x.fillStyle = g; x.fillRect(0, 0, cv.width, cv.height);
+    BO.forEach(([ten, o, clip, bc, t1], i) => { const tt = t1 ?? t, a = MS.nv.actor({ id: 'nv', ve: cast['b' + seen[JSON.stringify(o)]].ve, x: 450, y: 1420, huong: i % 2 ? -1 : 1, goc: '3-4', bc, hd: [{ t: 0, clip }], lo_xo: false });
+      og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 900, 1500); MS.nv.scene(og, [a], tt); const b = MS.nv.vungAt(a, tt).toan_than, s2 = q.get('dang') || q.get('hinh') || q.get('dong') || q.get('dan') ? .62 : 860 / (1432 - b[1]);
+      const X0 = (i % COLS) * 330, Y0 = Math.floor(i / COLS) * ROWH;
+      if (q.get('mat')) { const h = MS.nv.vungAt(a, tt).dau, pd = h[2] * .1, sc = Math.min(300 / (h[2] + 2 * pd), 290 / (h[3] + 2 * pd)); x.fillStyle = '#eef0f2'; x.beginPath(); x.roundRect(X0 + 8, Y0 + 8, 314, ROWH - 16, 14); x.fill();
+        x.save(); x.beginPath(); x.roundRect(X0 + 8, Y0 + 8, 314, ROWH - 16, 14); x.clip(); x.drawImage(off, h[0] - pd, h[1] - pd, h[2] + 2 * pd, h[3] + 2 * pd, X0 + 165 - (h[2] + 2 * pd) * sc / 2, Y0 + 14, (h[2] + 2 * pd) * sc, (h[3] + 2 * pd) * sc); x.restore();
+        x.fillStyle = '#2a2a34'; x.font = '600 17px sans-serif'; x.fillText(ten, X0 + 18, Y0 + ROWH - 18); return; }
+      x.save(); x.beginPath(); x.rect(X0, Y0, 330, ROWH); x.clip(); x.drawImage(off, 0, 0, 900, 1500, X0 + 165 - 450 * s2, Y0 + ROWH - 40 - 1432 * s2, 900 * s2, 1500 * s2); x.restore(); x.fillStyle = '#ffe08a'; x.font = '700 24px sans-serif'; x.fillText(ten, X0 + 16, Y0 + 34); }); return 1; };
+  render(.5); }, 50);
+else (async () => { const cast = { nv: { ve: { kieu: 'anh', xuong: spec } } }; await MS.nv.loadCast(cast); ve = cast.nv.ve; window.READY = true; render(+(location.hash.slice(1)) || .5); })();
+const actor = (bc, clip, huong = 1) => MS.nv.actor({ id: 'nv', ve, x: 450, y: 1420, huong, goc: '3-4', bc, hd: [{ t: 0, clip }], lo_xo: false });
+window.render = async t => {
+  const g = x.createLinearGradient(0, 0, 0, cv.height); g.addColorStop(0, '#2b3442'); g.addColorStop(1, '#151a22'); x.fillStyle = g; x.fillRect(0, 0, cv.width, cv.height);
+  x.fillStyle = '#ffe08a'; x.font = '700 30px sans-serif'; x.fillText(`${spec.ten || 'Character'} · ${spec.phong_cach || ''}`, 20, 40);
+  // left: big 3/4 standing + three small poses
+  const big = actor(q.get('bcl') || 'tu_tin', q.get('clip') || 'dung-ngau'), tB = +(q.get('t') || t); og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 900, 1500); MS.nv.scene(og, [big], tB);
+  const bx = MS.nv.vungAt(big, tB).toan_than, sc = Math.min(560 / bx[2], 900 / bx[3]); x.drawImage(off, bx[0], bx[1], bx[2], bx[3], 20 + (480 - bx[2] * sc) / 2, 80, bx[2] * sc, bx[3] * sc);
+  POSE.slice(1).forEach(([clip, tt, ten], i) => { const a = actor(['quyet', 'vui', 'met'][i], clip, i === 2 ? -1 : 1); og.clearRect(0, 0, 900, 1500); MS.nv.scene(og, [a], tt);
+    const b = MS.nv.vungAt(a, tt).toan_than, s2 = Math.min(240 / b[2], 300 / b[3]), Y = 80 + i * 320; x.drawImage(off, b[0], b[1], b[2], b[3], 520 + (240 - b[2] * s2) / 2, Y, b[2] * s2, b[3] * s2);
+    x.fillStyle = '#c8d4e4'; x.font = '18px sans-serif'; x.fillText(ten, 530, Y + 312); });
+  // right: expressions
+  EX.forEach((bc, i) => { const X = LW + (i % cols) * CW, Y = 60 + Math.floor(i / cols) * CH, a = actor(bc, 'dung'); og.clearRect(0, 0, 900, 1500); MS.nv.scene(og, [a], .5);
+    const h = MS.nv.vungAt(a, .5).dau, pad = h[2] * .08, s3 = Math.min((CW - 20) / (h[2] + 2 * pad), (CH - 50) / (h[3] + 2 * pad));
+    x.fillStyle = '#eef0f2'; x.beginPath(); x.roundRect(X + 8, Y + 6, CW - 16, CH - 14, 14); x.fill();
+    x.save(); x.beginPath(); x.roundRect(X + 8, Y + 6, CW - 16, CH - 14, 14); x.clip(); x.drawImage(off, h[0] - pad, h[1] - pad, h[2] + 2 * pad, h[3] + 2 * pad, X + (CW - (h[2] + 2 * pad) * s3) / 2, Y + 10, (h[2] + 2 * pad) * s3, (h[3] + 2 * pad) * s3); x.restore();
+    x.fillStyle = '#2a2a34'; x.font = '600 20px sans-serif'; x.fillText(TEN[bc] || bc, X + 22, Y + CH - 22); });
+  return 1;
+};
+</script>

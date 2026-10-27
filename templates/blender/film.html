@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/layers.js"></script><script src="/ms/core/film.js"></script>
+<script>
+// Blender template: each scene has a `blender: canh/<file>.py` key in video.yaml; `xp blender` renders the image sequence into build/layers/<id>/.
+const layers = {};
+MS.film({
+  scenes: { '*': { async draw(x, c) {
+    (layers[c.id] ||= MS.seq(`build/layers/${c.id}`)); await layers[c.id](x, c);
+    MS.words(x, c.data.tieu_de || c.id, c.W / 2, c.H * .22, .4, c.lt, 76);
+  } } },
+});
+</script>

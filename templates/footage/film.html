@@ -1,0 +1,93 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script type="importmap">{"imports":{"three":"/ms/node_modules/three/build/three.module.js","three/addons/":"/ms/node_modules/three/examples/jsm/"}}</script>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/puppet.js"></script><script src="/ms/core/critters.js"></script><script src="/ms/core/layers.js"></script><script src="/ms/core/stills.js"></script>
+<script src="/ms/core/fx.js"></script><script src="/ms/core/dohoa.js"></script><script src="/ms/core/hudbien.js"></script><script src="/ms/core/film.js"></script>
+<script>
+// "Live footage" template: found clips → frame sequences (MS.seq, several fast-cut clips per scene), images → 2.5D (MS.still25) or Ken Burns.
+// Scene keys (video.yaml): chu, nhan, do_hoa, do_sau, loc (colour filter), zoom/zoom0/troi/tam, lop_phu, chuyen, tiet_lo.
+const { clamp } = MS.u, SEQ = {}, IMG = {}, LOP = {}, SHOT = {};
+let BOOK = {};
+// ---------- cartoon characters over real footage (puppet.js) ----------
+// phong_cach.nhan_vat: { <id>: <spec> } (see references/characters.md) · phong_cach.dan_chuyen: <id> = narrator
+// scene `dan: [[0–1, pose, expr], …]` → narrator talks in the lower-left corner over the image (lip-synced)
+// scene `canh_hh: { nen: giay-co|sa-mac|cung-dien|bien|ban-do, vai: [{ ai: <id>, x: .3, s: 1, lat: false, dien: [[0, pose, expr]], noi: true }] }`
+//   → a cartoon re-enactment on a drawn background instead of an image (no `tim` needed)
+let WORDS = [], CAST = {}, P3 = null, O3 = null;
+// scene `bien3d: { tu: 0, den: 1000, moc: [titanic, snailfish, challenger, sperm-whale], everest: false }` → 3D ocean cross-section
+//   (engine/backends/three/ocean3d.js) instead of footage; a probe dives tu → den metres. phong_cach.hud_bien: true → live
+//   DEPTH / PRESSURE / TEMP / LIGHT readout (core/hudbien.js) on scenes with bien3d or `sau: m | [from, to]`
+// scene `vat3d: { kieu: ban-do|gieng-dau|thung-dau|lich|dong-ho|…, x, y, co, su_kien: "word" | ["w1", "w2"], toi: .45, …options }`
+//   → a stylised 3D prop (engine/backends/three/props3d.js) over the footage; toi = darken the footage behind it (0–1)
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
+function hitW(c, text, fb) { const t0 = c.t - c.lt, w0 = norm(String(text).split(/\s+/)[0]); if (w0) for (const w of WORDS) if (w[1] >= t0 - .05 && w[1] < t0 + c.D && norm(w[0]) === w0) return w[1] - t0; return fb; }
+const PP = () => MS.puppet;
+// animal mascots (critters.js: mochi, bao, tuck, fizz, hop) share the same track/words API as human puppets
+const CRIT = {}; function drawCast(x, id, o) { if (MS.critters && MS.critters.SPECIES[id] && !((MS.STYLE.nhan_vat || {})[id])) { CRIT[id] = CRIT[id] || MS.critters.create(id); return MS.critters.draw(x, CRIT[id], o); } PP().draw(x, castOf(id), o); }
+function castOf(id) { if (!CAST[id]) { const sp = ((MS.STYLE.nhan_vat || {})[id]) || PP().SAMPLES[id] || PP().SAMPLES.scholar; CAST[id] = PP().create({ name: id, ...sp }); } return CAST[id]; }
+function trackOf(c, d) { const v0 = c.t - c.vt, dur = Math.max(c.vdur, 1); return [{ t: -99, pose: 'idle', expr: 'neutral' }, ...(Array.isArray(d) ? d : [[0, 'explain', 'neutral']]).map(([f, pose, expr]) => ({ t: v0 + f * dur, pose, expr }))]; }
+const HHBG = {
+  'giay-co'(x, W, H) { const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#f1dfb8'); g.addColorStop(1, '#d9bf8a'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(120,80,30,.12)'; x.lineWidth = 3; for (let i = 0; i < 40; i++) { x.beginPath(); x.moveTo(0, i * 52 + 10); x.lineTo(W, i * 52 + (i % 3) * 6); x.stroke(); } },
+  'sa-mac'(x, W, H) { const g = x.createLinearGradient(0, 0, 0, H * .62); g.addColorStop(0, '#8ec9ee'); g.addColorStop(1, '#fbe3b0'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    PP().shape(x, [[0, H * .58], [W * .4, H * .55], [W, H * .58], [W, H], [0, H]], '#e8c487', { sharp: true }); PP().shape(x, [[W * .55, H * .58], [W * .78, H * .38], [W * 1.01, H * .58]], '#d6b47c', { sharp: true }); },
+  'cung-dien'(x, W, H) { x.fillStyle = '#e9dcc0'; x.fillRect(0, 0, W, H); for (let i = 0; i < 5; i++) PP().shape(x, [[60 + i * 230, H * .12], [140 + i * 230, H * .12], [140 + i * 230, H * .62], [60 + i * 230, H * .62]], '#d2bf96', { sharp: true });
+    PP().shape(x, [[-20, H * .62], [W + 20, H * .61], [W + 20, H], [-20, H]], '#b58a5a', { sharp: true }); },
+  'bien'(x, W, H, t) { const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#9fd3f2'); g.addColorStop(.5, '#e8f4fb'); g.addColorStop(.5, '#2f78a8'); g.addColorStop(1, '#1d4f74'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 5; for (let r = 0; r < 8; r++) { x.beginPath(); for (let k = 0; k <= 30; k++) { const px = k / 30 * W, py = H * .52 + r * 70 + Math.sin(k * .8 + t * 2 + r) * 10; k ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); } },
+  'ban-do'(x, W, H) { x.fillStyle = '#cfe6f2'; x.fillRect(0, 0, W, H); PP().shape(x, [[W * .1, H * .2], [W * .7, H * .15], [W * .95, H * .35], [W * .9, H * .7], [W * .45, H * .8], [W * .15, H * .6]], '#e9d6a8'); },
+};
+MS.film({
+  topShade: true, vignette: .38, fadeIn: .12,
+  transition: { type: 'tu-dong', dur: .42 },
+  gpu: () => P3 ? P3.gpu() : O3 ? O3.gpu() : 'canvas2d',                                        // subtle transition cycle, dissolve finished before the narration starts
+  prepare: async TL => { BOOK = await (await fetch('giay_phep.json')).json().catch(() => ({})); WORDS = (TL.subs || []).flatMap(s => s.w || []).map(w => [w[0], w[1], w[2]]);
+    for (const s of TL.scenes) { const b = BOOK[s.id]; if (!b) continue;
+      if (b.shots) {                                                              // scene with several camera angles (video + images alternating)
+        const A = { seq: MS.seq(`build/layers/${s.id}`, { ext: 'jpg' }), img: {}, lop: {}, diem: {} };
+        for (const sh of b.shots) if (sh.k === 'a') { const e = BOOK[sh.id] || {}; A.diem[sh.id] = e.diem;
+          if (e.lop) A.lop[sh.id] = [await MS.img(e.lop.nen), await MS.img(e.lop.tien)]; if (e.file) A.img[sh.id] = await MS.img(e.file); }
+        SHOT[s.id] = A; continue; }
+      if (b.loai === 'video') SEQ[s.id] = MS.seq(`build/layers/${s.id}`, { ext: 'jpg' });
+      else if (b.lop) { LOP[s.id] = [await MS.img(b.lop.nen), await MS.img(b.lop.tien)]; }
+      else if (b.file) IMG[s.id] = await MS.img(b.file); }
+    if (TL.scenes.some(s => (s.data || {}).vat3d)) { const { stage } = await import('/ms/backends/three/props3d.js'); P3 = stage(MS.FORMATS[TL.format]); await P3.preload(TL); }
+    if (TL.scenes.some(s => (s.data || {}).bien3d)) { const { oceanStage } = await import('/ms/backends/three/ocean3d.js'); O3 = oceanStage(MS.FORMATS[TL.format]); } },
+  // shared colour grade so different sources look like one film
+  post(x, t) { x.save(); x.globalCompositeOperation = 'soft-light'; x.fillStyle = 'rgba(255,180,120,.08)'; x.fillRect(0, 0, MS.FMT.W, MS.FMT.H); x.globalCompositeOperation = 'multiply'; x.fillStyle = 'rgba(40,60,90,.06)'; x.fillRect(0, 0, MS.FMT.W, MS.FMT.H); x.restore(); },
+  scenes: { '*': { async draw(x, c) {
+    // accent: if the title is a number → punch-in + slight shake as the text appears; cut between clips → very light accent
+    const so = /\d/.test(c.data.chu || ''), a1 = MS.fx.nhan(c.lt, so ? [.28] : []), a2 = MS.fx.nhan(c.lt, (BOOK[c.id] || {}).cat || [], .4);
+    const nh = { z: a1.z * a2.z, dx: a1.dx + a2.dx, dy: a1.dy + a2.dy };
+    let r = null; const td = c.data.toi_dan ? ` brightness(${(1 - (1 - (c.data.toi_dan_den ?? .4)) * MS.u.eio(clamp((c.lt - .6) / (c.D - .8)))).toFixed(3)})` : '';   // toi_dan: gradually darken (e.g. "invisible")
+    if (c.data.loc || td) x.filter = (c.data.loc || '') + td;                     // loc: per-scene colour filter (CSS filter)
+    x.save(); x.translate(c.W / 2 + nh.dx, c.H / 2 + nh.dy); x.scale(nh.z, nh.z); x.translate(-c.W / 2, -c.H / 2);
+    if (c.data.bien3d && O3) { x.filter = 'none'; O3.draw(x, { lt: c.lt, D: c.D, t: c.t }, c.data.bien3d); r = { x: 0, y: 0, w: c.W, h: c.H }; }
+    else if (SHOT[c.id]) { x.save(); const v = BOOK[c.id].shots.every(s => s.k === 'v') && BOOK[c.id].loai !== 'huashu', k = MS.u.eio(clamp(c.lt / c.D)), z = v ? (c.data.zoom0 ?? 1.0) + (c.data.zoom ?? .08) * k : 1;   /* huashu: full composition, no push-in */   /* video only: slow push-in as before */
+      x.translate(c.W / 2 + (v ? (c.data.troi ?? 0) * c.W * k : 0), c.H / 2); x.scale(z, z); x.translate(-c.W / 2, -c.H / 2);
+      r = await MS.shots(x, c, BOOK[c.id].shots, SHOT[c.id], { zoom0: c.data.zoom0, zoom: c.data.zoom, tam: c.data.tam }); x.restore(); }
+    else if (SEQ[c.id]) { x.save(); const k = MS.u.eio(clamp(c.lt / c.D)), z = (c.data.zoom0 ?? 1.0) + (c.data.zoom ?? .08) * k; x.translate(c.W / 2 + (c.data.troi ?? 0) * c.W * k, c.H / 2); x.scale(z, z); /* slow push-in */ x.translate(-c.W / 2, -c.H / 2); await SEQ[c.id](x, c); x.restore(); r = { x: 0, y: 0, w: c.W, h: c.H }; }
+    else if (LOP[c.id]) r = MS.still25(x, LOP[c.id][0], LOP[c.id][1], c, { zoom: [c.data.zoom0 ?? 1.06, (c.data.zoom0 ?? 1.06) + (c.data.zoom ?? .12)], focus: c.data.tam || [.5, .45] });
+    else if (IMG[c.id]) r = MS.still(x, IMG[c.id], c, { zoom: [c.data.zoom0 ?? 1.04, (c.data.zoom0 ?? 1.04) + (c.data.zoom ?? .14)], focus: c.data.tam || [.5, .45] });
+    else if (c.data.canh_hh) { x.filter = 'none'; const h = c.data.canh_hh; PP().pen(c.t, 11); (HHBG[h.nen] || HHBG['giay-co'])(x, c.W, c.H, c.t);
+      (h.vai || []).forEach((v, k) => drawCast(x, v.ai, { x: (v.x ?? (k + 1) / ((h.vai || []).length + 1)) * c.W, y: c.H * (v.y ?? .66), scale: (v.s ?? 1) * (c.H > c.W ? 1 : .8), flip: v.lat, t: c.t + k * .13, track: trackOf(c, v.dien), words: v.noi ? WORDS : null })); }
+    else { x.filter = 'none'; const g = x.createLinearGradient(0, 0, 0, c.H); g.addColorStop(0, '#101828'); g.addColorStop(1, '#302040'); x.fillStyle = g; x.fillRect(0, 0, c.W, c.H); }
+    x.restore(); x.filter = 'none';
+    if (c.data.vat3d && P3) { const v = c.data.vat3d, tall = c.H > c.W, ev = [].concat(v.su_kien || []).map((w, k) => hitW(c, w, null));
+      if (v.toi) { x.fillStyle = `rgba(5,8,14,${v.toi * MS.u.eo3(c.lt / .6)})`; x.fillRect(0, 0, c.W, c.H); }
+      P3.draw(x, c.id, v.kieu, { lt: c.lt, D: c.D, t: c.t, ev: ev[0] ?? c.D * (v.luc ?? .5), evs: ev }, { fx: v.x ?? .5, fy: v.y ?? (tall ? .5 : .56), co: v.co ?? 1, vao: v.vao ?? .1 }, v); }
+    if (c.ra) return;                                                             // scene is leaving: dissolve the picture only, no text (avoids two titles overlapping)
+    MS.dh.ve(x, c);
+    const hud = MS.STYLE.hud_bien && MS.hud && (c.data.bien3d || c.data.sau != null); if (hud) MS.hud.bien(x, c);                                                               // animated graphic (do_hoa) in the middle band
+    if (c.data.dan && MS.STYLE.dan_chuyen) { const tall = c.H > c.W; x.save(); MS.u.soft(x, tall ? 190 : 230, tall ? c.H * .7 : c.H * .82, 230, 260, '#000000', .35);
+      drawCast(x, MS.STYLE.dan_chuyen, { x: tall ? 170 : 230, y: tall ? c.H * .655 : c.H * .93, scale: tall ? .5 : .5, t: c.t, track: trackOf(c, c.data.dan), words: WORDS }); x.restore(); }   // narrator in the corner
+    // big title in the top quarter (below the TikTok UI zone), figure labels stacked right under the title → no overlap
+    const tall = c.H > c.W, ty = c.H * (tall ? (hud ? .27 : .22) : (hud ? .36 : .3));
+    const fb = tall ? 96 : 88; let fs = fb; if (c.data.chu) { x.save(); x.font = `800 ${fb}px ${MS.STYLE.font}`; fs = Math.round(Math.min(fb, fb * (tall ? 690 : 1500) / x.measureText(String(c.data.chu)).width)); x.restore(); }   // long titles shrink to fit: no overflow past the edge, no touching the TikTok button column
+    const het = c.data.chu_giu ?? 6.5, ra = c.D > het + 2 ? 1 - clamp((c.lt - het) / .6) : 1;   // chu_giu: seconds the title is held (short scene: held throughout)
+    if (c.data.chu && c.data.chu_nen !== false && ra > 0) { x.save(); x.font = `800 ${fs}px ${MS.STYLE.font}`; const w = x.measureText(String(c.data.chu)).width + 70; x.globalAlpha = clamp(c.i === 0 ? 1 : (c.lt - .2) / .3) * .55 * ra; x.fillStyle = '#05080f'; x.beginPath(); x.roundRect(c.W / 2 - w / 2, ty - 70, w, 140, 30); x.fill(); x.restore(); }   // dark backdrop behind the title (chu_nen: false to turn off)
+    if (c.data.chu && ra > 0) { x.save(); x.globalAlpha = ra; MS.title(x, String(c.data.chu), c.W / 2, ty, c.i === 0 ? -1 : .3, c.lt, fs, '#fff', c.data.title_style || c.data.chu_kieu); x.restore(); }   /* first scene: the title is there from frame 0 */
+    (c.data.nhan || []).forEach((n, k) => { const [ax, ay] = n.diem ? MS.at(r, ...n.diem) : [null, null]; /* no diem → the label stands alone */ MS.tag(x, n.chu, ax, ay, (c.vt - c.vdur * (n.luc ?? .3)) / .5, { slot: k, warn: n.canh_bao, y: (c.data.chu ? ty + (tall ? 130 : 100) : MS.FMT.tagY0) + k * MS.FMT.tagGap }); });
+  } } },
+});
+</script>

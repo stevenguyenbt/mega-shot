@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/film.js"></script>
+<script>
+// Blank template: each scene draws a moving gradient background + a word-by-word title. Replace draw() with your own visuals.
+const { eo3, soft } = MS.u;
+MS.film({
+  scenes: { '*': { draw(x, c) {
+    const g = x.createLinearGradient(0, 0, 0, c.H); g.addColorStop(0, '#1a1246'); g.addColorStop(1, '#5a2a6a'); x.fillStyle = g; x.fillRect(0, 0, c.W, c.H);
+    soft(x, c.W / 2 + Math.sin(c.t * .5) * 120, c.H * .45, 420, 420, '#ff8a5a', .35);
+    MS.words(x, c.data.tieu_de || c.id, c.W / 2, c.H * .38, .3, c.lt, 84);
+  } } },
+});
+</script>

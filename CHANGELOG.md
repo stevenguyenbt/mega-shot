@@ -1,0 +1,30 @@
+# Changelog
+
+All notable changes are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+versioning: [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [2.0.0] — 2026-10-27 — first open-source release
+
+### Added
+- English YAML keys for every documented option (`scenes`, `narration`, `subtitle`, `voice.sample`, `search.query`, …).
+  The original Vietnamese keys keep working and can be mixed (`tools/yaml_keys.py`, `docs/yaml-reference.md`).
+- English template names for `xp new --template` (`blank`, `ai-image`, `manifesto`, `medical`, `news`, `story`, `philosophy`).
+- API keys from environment variables or `<project>/.env` (`.env.example`), besides the legacy `.mega-shot/keys.env`.
+- `xp setup --install huashu` (optional drawn-styles skill into `vendor/`); FFmpeg install on macOS (Homebrew) and Linux (apt/dnf/pacman).
+- `MS_PROJECT` to pin the project folder; on first run `xp setup` makes the current folder the project.
+- Pluggable `xp social` (folder / webhook / custom-module adapters).
+- README, docs/, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, THIRD_PARTY_NOTICES, CI, issue/PR templates, `pyproject.toml`, secret scanner.
+
+### Changed
+- CLI help, log messages, Studio UI, comments and docs are English-first. Old Vietnamese command and flag names
+  (`giong`, `thu`, `xuat`, `loat chay`, `--lam-lai`, …) are still accepted.
+- Templates ship with English example scripts and the built-in `documentarian` English voice; default voice sample is `documentarian`.
+
+### Removed (specific to the original author's private setup)
+- Remote phone viewer (hosted web app), `xp tinx` (private news backend), `xp flow` (browser automation), the private
+  social-posting API client, and all of the author's channel profiles, voices, 3D model library and project data.
+
+## 1.5.x — before open-sourcing
+Internal versions (Vietnamese-only CLI and docs).

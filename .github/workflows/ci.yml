@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Secret / personal-data scan
+        run: python3 tools/secret_scan.py
+      - name: Ruff (errors only)
+        run: uvx ruff check tools tests
+      - name: Python syntax
+        run: python3 -m compileall -q tools tests
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: JS syntax
+        run: |
+          for f in $(find engine -name '*.js' -not -path '*/node_modules/*'); do node --check "$f" || exit 1; done
+          for f in $(find engine -name '*.mjs' -not -path '*/node_modules/*'); do node --check "$f" || exit 1; done
+
+  render-test:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+      - name: Install Chromium for Playwright
+        shell: bash
+        run: uv run --with playwright==1.63.0 python -m playwright install --with-deps chromium
+      - name: Setup report (quick)
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/proj" && cd "$RUNNER_TEMP/proj"
+          bash "$GITHUB_WORKSPACE/xp" setup --quick --no-launch || true
+      - name: Regression test (blank template, synthetic voice)
+        shell: bash
+        run: uv run --with playwright==1.63.0 --with pyyaml --with pillow --with numpy --with ruamel.yaml python tests/kiem_thu.py

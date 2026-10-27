@@ -1,0 +1,23 @@
+# "Real footage" template: every scene finds openly licensed video/photos from its `search` queries. Workflow:
+#   xp narrate → xp assets → xp preview → xp mix → xp render → xp export → xp check   (credits: GHI_CONG.md)
+# English keys are used below; the original Vietnamese keys also work — see docs/yaml-reference.md.
+name: __TEN__
+format: __KHUNG__
+language: en
+voice: { sample: documentarian, volume: 0.55, speed: 1.0 }
+# music: { file: <path>.mp3, volume: 0.6, duck: true }   # background music — easiest: xp music add <audio-or-video> --name bg --use
+sfx: { level: 1.0, ambience: khong }                   # automatic whoosh/boom/riser/tick · ambience: duoi-nuoc (underwater) | khong (none)
+style: { overlays: [] }                                # whole-video overlays: tuyet-bien (marine snow), anh-day-nuoc (caustics), tia-nang (god rays), bot-khi (bubbles)
+# pacing: { gap: .15, pause: .25, khop_nhip: true }    # pacing (the default is already brisk)
+
+scenes:
+  - id: opening
+    search: [{ query: "bamboo forest sunlight" }, { query: "bamboo leaves wind close up" }]   # several clips → quick cuts; describe in English
+    title: Big title
+    narration: The opening line.
+  - id: scene-2
+    search: { query: "galaxy nebula hubble", type: image, source: nasa }
+    labels: [{ text: "Example label", point: [.5, .45], at: .4 }]
+    narration: The second line.
+    subtitle: The **second** line.                    # displayed text (digits for numbers, **keyword** highlight, | = line break)
+    graphic: { kind: thanh-ty-le, ratio: .5, nhan: "Example graphic" }   # so-sanh-cao (height) | dem-so (counter) | banh-tron (pie) | thanh-ty-le (ratio bar)

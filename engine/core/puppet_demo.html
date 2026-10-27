@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="util.js"></script><script src="overlay.js"></script><script src="textfx.js"></script><script src="puppet.js"></script>
+<script>
+// Preview page for code-drawn characters (xp character demo). draw(kind, t) → frame at time t (seconds).
+MS.FMT = MS.FORMATS['9x16']; MS.LANG = 'vi';
+const c = document.getElementById('c'), x = c.getContext('2d'), W = 1080, H = 1920, P = MS.puppet;
+const EMP = P.create(P.SAMPLES.emperor), FAR = P.create(P.SAMPLES.farmer), GEN = P.create(P.SAMPLES.general), SCH = P.create(P.SAMPLES.scholar);
+function bg(t) {                                            // parchment + faint map coastline (procedural)
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#f3e3c3'); g.addColorStop(1, '#e2c99a'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.fillStyle = 'rgba(120,80,40,.06)'; for (let i = 0; i < 60; i++) { x.beginPath(); x.arc((i * 197) % W, (i * 331) % H, 30 + (i * 13) % 90, 0, 7); x.fill(); }
+  x.strokeStyle = 'rgba(110,70,35,.25)'; x.lineWidth = 6; x.beginPath(); for (let k = 0; k <= 60; k++) { const px = k / 60 * W, py = 520 + Math.sin(k * .4) * 60 + Math.sin(k * 1.3) * 25; k ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke();
+  x.fillStyle = 'rgba(80,50,25,.18)'; x.fillRect(0, H * .79, W, H * .21);
+}
+function tag(s, y, size = 46) { x.save(); x.font = `800 ${size}px ${MS.STYLE.font}`; x.textAlign = 'center'; x.textBaseline = 'middle'; const w = x.measureText(s).width + 60;
+  x.fillStyle = 'rgba(30,20,12,.8)'; x.beginPath(); x.roundRect(W / 2 - w / 2, y - size * .85, w, size * 1.7, size * .85); x.fill(); x.fillStyle = '#ffd36b'; x.fillText(s, W / 2, y); x.restore(); }
+const LINE = 'Trẫm là thiên tử, thiên hạ này là của trẫm!'.split(' ');
+const WORDS = (() => { let t = .9; return LINE.map(s => { const d = .2 + s.length * .03, r = [s, t, t + d]; t += d + .05; return r; }); })();
+const SUBS = [{ s: LINE.join(' '), t0: .85, t1: WORDS[WORDS.length - 1][2] + .2, w: WORDS.map(w => [...w, 0]) }];
+const TRACK = [{ t: 0, pose: 'idle', expr: 'neutral' }, { t: .8, pose: 'explain', expr: 'neutral' }, { t: 1.9, pose: 'point', expr: 'smug' }, { t: 3.1, pose: 'cheer', expr: 'happy' },
+  { t: 4.3, pose: 'angry', expr: 'angry' }, { t: 5.3, pose: 'shrug', expr: 'surprised' }, { t: 6.2, pose: 'facepalm', expr: 'sad' }];
+const EX = ['neutral', 'happy', 'angry', 'surprised', 'smug', 'sad', 'worried'], EXN = { neutral: 'neutral', happy: 'happy', angry: 'angry', surprised: 'surprised', smug: 'smug', sad: 'sad', worried: 'worried' };
+window.DUR = { talk: 7.2, lineup: EX.length * .9 + .3 };
+window.draw = (kind, t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0); bg(t);
+  if (kind === 'talk') {
+    tag('emperor · lip-sync + poses + expressions', 150, 40);
+    const ev = TRACK.filter(e => t >= e.t).pop(); tag(`pose: ${ev.pose} · expr: ${ev.expr}`, 260, 38);
+    P.draw(x, EMP, { x: W / 2, y: 1330, scale: 1.55, t, track: TRACK, words: WORDS });
+    MS.STYLE.subtitle_style = 'highlight'; MS.subtitle(x, t, SUBS);
+  } else {
+    const i = Math.min(EX.length - 1, Math.floor(t / .9)), e = EX[i], tr = [{ t: 0, pose: 'idle', expr: 'neutral' }, ...EX.map((k, j) => ({ t: j * .9, expr: k, pose: k === 'happy' ? 'cheer' : k === 'angry' ? 'angry' : k === 'surprised' ? 'shrug' : k === 'smug' ? 'arms-crossed' : k === 'sad' ? 'facepalm' : 'idle' }))];
+    tag('4 characters from data specs', 150, 40); tag(`expr: ${EXN[e]}`, 260, 44);
+    P.draw(x, FAR, { x: 300, y: 1000, scale: .62, t, track: tr });
+    P.draw(x, SCH, { x: 780, y: 1000, scale: .62, t: t + .07, track: tr });
+    P.draw(x, EMP, { x: 300, y: 1560, scale: .62, t: t + .05, track: tr });
+    P.draw(x, GEN, { x: 780, y: 1560, scale: .62, t: t + .1, track: tr });
+  }
+  return c.toDataURL('image/jpeg', .9);
+};
+</script>

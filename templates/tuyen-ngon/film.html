@@ -1,0 +1,172 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<style>
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-Black.ttf);font-weight:900}
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:OSW;src:url("/root/.mega-shot/fonts/Oswald[wght].ttf");font-weight:200 700}
+</style>
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/stills.js"></script>
+<script src="/ms/core/fx.js"></script><script src="/ms/core/film.js"></script>
+<script type="importmap">{"imports":{"three":"/ms/node_modules/three/build/three.module.js","three/addons/":"/ms/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import { stage } from '/ms/backends/three/props3d.js';
+// "Manifesto" template: grey-beige paper background ↔ black background with a spotlight, cut-out person printed photocopy/halftone style with a paper border,
+// 3D red block text slamming in exactly when its word is spoken, tilted photo frame, question card, chapter label at the top. See references/manifesto.md.
+// Scene keys: kieu: chu-3d | cat-dan | khung | the · nen: giay | toi · chu · chu_tren · chu_duoi · vi_tri: trai|giua|phai · chuong: <number>
+// vat3d: { kieu: bong-den|dong-ho|lich|o-vuong|song|thap|cau-thang|cua|ta|dong-ho-cat, x, y, co, su_kien: "<spoken word>", …optional } → 3D object (props3d.js)
+// anh: mau (default: colour image graded, paper border + offset red shadow, risograph style) | photocopy (black-and-white halftone as before)
+const { clamp, lerp, eo3, back, rgen, canvas } = MS.u, ASSET = {};
+let BOOK = {}, WORDS = [], P3 = null;
+const RED = '#e0261b', RED2 = '#8f0f0a', RED3 = '#3d0604', INK = '#131313', PAPER = '#e9e5dc';
+const F3 = s => `900 ${s}px BVP`;
+// ---------- background ----------
+let NOISE = null;
+function noise(W, H) { if (NOISE) return NOISE; const k = canvas(W, H), g = k.getContext('2d'), r = rgen(7);
+  for (let i = 0; i < W * H / 60; i++) { const v = r(); g.fillStyle = v < .5 ? `rgba(0,0,0,${.05 + r() * .08})` : `rgba(255,255,255,${.04 + r() * .06})`; g.fillRect(r() * W, r() * H, 1 + r() * 2, 1 + r() * 2); }
+  g.strokeStyle = 'rgba(60,50,40,.05)'; g.lineWidth = 1; for (let i = 0; i < 120; i++) { const x0 = r() * W, y0 = r() * H; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(x0 + r() * 60 - 30, y0 + r() * 60 - 30, x0 + r() * 120 - 60, y0 + r() * 120 - 60); g.stroke(); }
+  return NOISE = k; }
+function bgPaper(x, c) { const g = x.createRadialGradient(c.W * .5, c.H * .42, 0, c.W * .5, c.H * .5, c.H * .75); g.addColorStop(0, '#ebe7de'); g.addColorStop(.6, '#d8d3c8'); g.addColorStop(1, '#a9a49a');
+  x.fillStyle = g; x.fillRect(0, 0, c.W, c.H); const fl = x.createLinearGradient(0, c.H * .62, 0, c.H); fl.addColorStop(0, 'rgba(0,0,0,0)'); fl.addColorStop(1, 'rgba(40,30,20,.18)'); x.fillStyle = fl; x.fillRect(0, c.H * .62, c.W, c.H * .38);
+  x.drawImage(noise(c.W, c.H), 0, 0); }
+function bgDark(x, c) { x.fillStyle = '#070707'; x.fillRect(0, 0, c.W, c.H);
+  const sx = c.W * .5 + Math.sin(c.t * .3) * 20, g = x.createRadialGradient(sx, c.H * .48, 0, sx, c.H * .48, c.H * .55); g.addColorStop(0, 'rgba(120,110,100,.32)'); g.addColorStop(.5, 'rgba(60,55,50,.12)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, c.W, c.H);
+  x.save(); x.globalCompositeOperation = 'screen'; const cone = x.createLinearGradient(0, 0, 0, c.H * .7); cone.addColorStop(0, 'rgba(255,240,220,.10)'); cone.addColorStop(1, 'rgba(255,240,220,0)'); x.fillStyle = cone;
+  x.beginPath(); x.moveTo(sx - 60, 0); x.lineTo(sx + 60, 0); x.lineTo(sx + c.W * .55, c.H * .7); x.lineTo(sx - c.W * .55, c.H * .7); x.fill();
+  const r = rgen(3); for (let i = 0; i < 40; i++) { const px = (r() * c.W + c.t * (8 + r() * 14)) % c.W, py = (r() * c.H * .7 + Math.sin(c.t * .5 + i) * 30); x.fillStyle = `rgba(255,240,220,${.08 + r() * .15})`; x.fillRect(px, py, 2, 2); }
+  x.restore(); x.save(); x.globalAlpha = .5; x.drawImage(noise(c.W, c.H), 0, 0); x.restore(); }
+// ---------- photocopy / halftone (computed once per image) ----------
+// ordered clustered-dot screen rotated 45°: big ink dots in dark areas, small in light areas; keeps the cut-out image's alpha; white paper border around the subject
+function halftone(im, o = {}) {
+  const maxD = o.max || 1200, s = Math.min(1, maxD / Math.max(im.width, im.height)), w = Math.round(im.width * s), h = Math.round(im.height * s);
+  const src = canvas(w, h), sg = src.getContext('2d'); sg.drawImage(im, 0, 0, w, h); const d = sg.getImageData(0, 0, w, h), p = d.data;
+  const L = new Float32Array(w * h), hist = [];
+  for (let i = 0; i < w * h; i++) { L[i] = (p[i * 4] * .3 + p[i * 4 + 1] * .59 + p[i * 4 + 2] * .11) / 255; if (p[i * 4 + 3] > 128 && i % 7 === 0) hist.push(L[i]); }
+  hist.sort((a, b) => a - b); const lo = hist[Math.floor(hist.length * .04)] ?? 0, hi = hist[Math.floor(hist.length * .96)] ?? 1;
+  const cell = o.cell || Math.max(4, w / 170), k = 2 * Math.PI / cell, ca = Math.cos(Math.PI / 4), sa = Math.sin(Math.PI / 4);
+  const ink = [19, 19, 19], pap = [236, 232, 223];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x, l = clamp((L[i] - lo) / Math.max(.05, hi - lo)), lc = clamp((l - .5) * 1.25 + .5);
+    const u = (x * ca + y * sa) * k, v = (-x * sa + y * ca) * k, scr = (Math.cos(u) + Math.cos(v)) / 4 + .5, on = lc > scr * .9 + .05 ? 1 : 0;
+    if (o.mau) {                                                              // colour image: stretch the highlights, contrast + slight saturation, warm, print dots only in dark areas
+      const r0 = p[i * 4] / 255, g0 = p[i * 4 + 1] / 255, b0 = p[i * 4 + 2] / 255, sc = l / Math.max(.02, L[i]) * (L[i] > .02 ? 1 : 0), dot = lc < .42 && !on ? .16 * (1 - lc / .42) : 0;
+      const C3 = [r0, g0, b0].map(v => { let q = clamp(v * (L[i] > .02 ? Math.min(2.2, sc) : 1)); q = clamp(L[i] + (q - L[i]) * 1.18); q = clamp((q - .5) * 1.12 + .5); return q; });
+      const m = (C3[0] + C3[1] + C3[2]) / 3, sat = C3.map(q => clamp(m + (q - m) * 1.15));
+      p[i * 4] = Math.round(clamp(sat[0] * 1.03 + .01) * 255 * (1 - dot)); p[i * 4 + 1] = Math.round(sat[1] * 255 * (1 - dot)); p[i * 4 + 2] = Math.round(clamp(sat[2] * .94) * 255 * (1 - dot));
+      p[i * 4 + 3] = p[i * 4 + 3] > 110 ? 255 : 0; continue; }
+    const e = clamp((lc - (scr * .9 + .05)) * 6 + .5);               // soften the dot edges a little
+    for (let j = 0; j < 3; j++) p[i * 4 + j] = Math.round(ink[j] + (pap[j] - ink[j]) * (on ? Math.max(e, .85) : Math.min(e, .15)));
+    p[i * 4 + 3] = p[i * 4 + 3] > 110 ? 255 : 0; }
+  sg.putImageData(d, 0, 0);
+  if (!o.vien) return src;
+  let x0 = w, y0 = h, x1 = 0, y1 = 0; for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) if (p[(y * w + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }   // crop tight to the subject
+  if (x1 <= x0) return src; const cw = x1 - x0 + 2, ch = y1 - y0 + 2;
+  const b = o.vien, out = canvas(cw + b * 2 + (o.do ? (o.lech || 18) : 0), ch + b * 2 + (o.do ? (o.lech || 18) : 0)), og = out.getContext('2d'), sil = canvas(cw, ch), sl = sil.getContext('2d');   // paper border: dilated white silhouette
+  sl.drawImage(src, x0, y0, cw, ch, 0, 0, cw, ch); sl.globalCompositeOperation = 'source-in'; sl.fillStyle = '#f4f1ea'; sl.fillRect(0, 0, cw, ch);
+  if (o.do) { const rs = canvas(cw + b * 2, ch + b * 2), rg = rs.getContext('2d'); for (let a = 0; a < 24; a++) rg.drawImage(sil, b + Math.cos(a / 24 * 6.283) * b, b + Math.sin(a / 24 * 6.283) * b);
+    rg.globalCompositeOperation = 'source-in'; rg.fillStyle = o.do; rg.fillRect(0, 0, rs.width, rs.height); og.drawImage(rs, o.lech || 18, o.lech || 18); }   // offset red shadow (risograph)
+  for (let a = 0; a < 24; a++) og.drawImage(sil, b + Math.cos(a / 24 * 6.283) * b, b + Math.sin(a / 24 * 6.283) * b);
+  og.drawImage(src, x0, y0, cw, ch, b, b, cw, ch); return out;
+}
+// ---------- 3D red block text ----------
+function txt3d(x, text, cx, cy, size, o = {}) {
+  x.save(); x.font = F3(size); x.textAlign = 'center'; x.textBaseline = 'middle';
+  const dep = Math.round(size * (o.depth ?? .16)), dx = o.dx ?? .28, dy = o.dy ?? 1;
+  x.save(); x.shadowColor = 'rgba(0,0,0,.55)'; x.shadowBlur = size * .35; x.shadowOffsetY = size * .25; x.fillStyle = RED3; x.fillText(text, cx + dep * dx, cy + dep * dy); x.restore();
+  for (let i = dep; i > 0; i--) { x.fillStyle = MS.u.mix(RED3, RED2, 1 - i / dep); x.fillText(text, cx + i * dx, cy + i * dy); }
+  const gr = x.createLinearGradient(0, cy - size * .5, 0, cy + size * .5); gr.addColorStop(0, o.top || '#ff4a33'); gr.addColorStop(1, o.face || '#c4170f');
+  x.fillStyle = gr; x.fillText(text, cx, cy);
+  x.globalCompositeOperation = 'source-atop'; x.globalAlpha = .18; x.drawImage(noise(MS.FMT.W, MS.FMT.H), 0, 0); x.restore();
+}
+const fit = (x, text, size, maxW, font = F3) => { x.save(); x.font = font(size); const w = x.measureText(text).width; x.restore(); return w > maxW ? Math.floor(size * maxW / w) : size; };
+// ---------- exactly when the word is spoken ----------
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
+function hit(c, text, fb = .2) {                                                  // second (within the scene) when the first word of `text` is spoken
+  const t0 = c.t - c.lt, w0 = norm(String(text).split(/\s+/)[0]);
+  if (w0) for (const w of WORDS) if (w[1] >= t0 - .05 && w[1] < t0 + c.D && norm(w[0]) === w0) return w[1] - t0;
+  return typeof fb === 'number' ? fb : .2; }
+const slam = (lt, at) => { const u = clamp((lt - at) / .32); return { a: clamp((lt - at) / .08), z: 1 + 0.55 * (1 - eo3(u)), shake: lt > at + .3 ? Math.exp(-(lt - at - .3) * 9) * Math.sin((lt - at) * 70) * 10 : 0 }; };
+function word3d(x, c, text, cx, cy, size, at, o = {}) {
+  if (!text || c.lt < at) return 0; const s = slam(c.lt, at), push = 1 + .04 * clamp((c.lt - at) / Math.max(1, c.D - at));
+  size = fit(x, text, size, c.W * (o.maxW || .86)); x.save(); x.globalAlpha = s.a; x.translate(cx + s.shake, cy); x.scale(s.z * push, s.z * push); txt3d(x, text, 0, 0, size, o); x.restore(); return s.shake; }
+function inkWord(x, c, text, cx, cy, size, at, o = {}) {                          // bold black ink text (over the image)
+  if (!text || c.lt < at) return; const s = slam(c.lt, at); size = fit(x, text, size, c.W * .9);
+  x.save(); x.globalAlpha = s.a; x.translate(cx + s.shake * .5, cy); x.scale(s.z, s.z); x.font = F3(size); x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = o.col || INK; x.fillText(text, 0, 0); x.restore(); }
+function small(x, c, text, cx, cy, size, at, col) { if (!text || c.lt < at) return; const a = eo3((c.lt - at) / .35);
+  x.save(); x.globalAlpha = a; x.font = `800 ${size}px BVP`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = col;
+  x.letterSpacing = `${Math.round(size * .12)}px`; x.fillText(text, cx, cy + (1 - a) * 20); x.restore(); }
+// ---------- image ----------
+async function load(id) { if (ASSET[id] !== undefined) return ASSET[id]; const b = BOOK[id]; let r = null;
+  const ids = b ? (b.shots ? b.shots.map(s => s.id) : [id]) : []; const list = [];
+  for (const bid of ids) { const e = BOOK[bid] || {}; if (!e.file || e.loai === 'video') continue;
+    const im = await MS.img(e.file), cut = e.lop ? await MS.img(e.lop.tien) : null; list.push({ im, cut, ht: null, htCut: null }); }
+  return ASSET[id] = list; }
+const MAU = () => (MS.STYLE.anh || 'mau') !== 'photocopy';
+const htOf = a => a.ht || (a.ht = halftone(a.im, { max: 1100 }));                     // black-and-white version: blurred image behind the text
+const colOf = a => MAU() ? (a.col || (a.col = halftone(a.im, { max: 1100, mau: true }))) : htOf(a);   // image inside the frame
+const htCutOf = a => a.cut ? (a.htCut || (a.htCut = MAU() ? halftone(a.cut, { max: 1100, vien: 16, mau: true, do: '#d42a1e', lech: 18 }) : halftone(a.cut, { max: 1100, vien: 9 }))) : null;
+function frame(x, img, cx, cy, w, rot, o = {}) {                                  // image printed inside a white paper frame, tilted, with a drop shadow
+  const h = w * img.height / img.width, b = w * .035; x.save(); x.translate(cx, cy); x.rotate(rot);
+  x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 40; x.shadowOffsetY = 18; x.fillStyle = '#f2efe8'; x.fillRect(-w / 2 - b, -h / 2 - b, w + b * 2, h + b * 2); x.shadowColor = 'transparent';
+  x.drawImage(img, -w / 2, -h / 2, w, h); x.restore(); return h + b * 2; }
+// ---------- chapter label ----------
+function chapter(x, c) { let n = null; for (const s of MS.TL.scenes) { if (s.t0 > c.t - c.lt + .01) break; if ((s.data || {}).chuong != null) n = s.data.chuong; } if (n == null) return;
+  const dark = (c.data.nen || (c.data.kieu === 'the' ? 'toi' : 'giay')) === 'toi', lab = `${String(n).padStart(2, '0')} / ${MS.STYLE.nhan_chuong || 'TUYÊN NGÔN'}`;
+  x.save(); x.font = '500 30px OSW'; x.letterSpacing = '6px'; x.fillStyle = dark ? 'rgba(235,230,220,.6)' : 'rgba(30,30,30,.6)'; x.fillRect(60, 192, 16, 16); x.fillText(lab, 92, 210); x.restore(); }
+// ---------- scene ----------
+const KIEU = {
+  'chu-3d'(x, c) { const d = c.data, tall = c.H > c.W, cy = c.H * (d.vat3d ? (tall ? .25 : .3) : (tall ? .42 : .48)), sz = (tall ? 200 : 210) * (d.vat3d ? .85 : 1);
+    const at = hit(c, d.chu, .25), at0 = d.chu_tren ? hit(c, d.chu_tren, .1) : at;
+    if (d.tim && ASSET[c.id] && ASSET[c.id][0]) { const a = ASSET[c.id][0], im = htOf(a); x.save(); x.globalAlpha = .22; const r = MS.kb(im, c.W, c.H, c.lt / c.D, { zoom: [1.05, 1.15], t: c.t }); x.drawImage(im, r.x, r.y, r.w, r.h); x.restore(); }
+    small(x, c, d.chu_tren, c.W / 2, cy - sz * .78, tall ? 56 : 50, Math.min(at0, at), (d.nen || 'toi') === 'toi' ? '#efe9de' : INK);
+    const lines = String(d.chu || '').split('|'); lines.forEach((l, k) => word3d(x, c, l.trim(), c.W / 2, cy + k * sz * 1.02, sz, k ? hit(c, l.trim(), at + .4 * k) : at));
+    small(x, c, d.chu_duoi, c.W / 2, cy + sz * (lines.length - 1) * 1.02 + sz * .8, tall ? 40 : 36, d.chu_duoi ? hit(c, d.chu_duoi, at + .5) : 0, (d.nen || 'toi') === 'toi' ? 'rgba(239,233,222,.8)' : 'rgba(20,20,20,.75)'); },
+  'cat-dan'(x, c) { const d = c.data, tall = c.H > c.W, A = (ASSET[c.id] || []).find(a => a.cut) || (ASSET[c.id] || [])[0]; if (!A) return KIEU['chu-3d'](x, c);
+    const cut = htCutOf(A), side = { trai: .36, giua: .5, phai: .64 }[d.vi_tri || 'giua'], u = eo3(c.lt / .7), k = c.lt / c.D;
+    if (cut) { let hh = c.H * (tall ? .42 : .72) * (d.co ?? 1), w = hh * cut.width / cut.height; if (w > c.W * (tall ? .86 : .6)) { w = c.W * (tall ? .86 : .6); hh = w * cut.height / cut.width; }
+      const cx = c.W * side + (d.troi ?? -.03) * c.W * k, by = c.H * (tall ? .63 : .9) + (1 - u) * 80;
+      MS.u.soft(x, cx, by - 10, w * .45, 26, '#000000', .35);
+      x.save(); x.globalAlpha = u; const z = 1 + .03 * k; x.translate(cx, by); x.scale(z, z); x.drawImage(cut, -w / 2, -hh, w, hh); x.restore(); }
+    else { const im = colOf(A); frame(x, im, c.W / 2, c.H * .4, c.W * (tall ? .8 : .5), -.03 + .01 * k); }
+    const at = hit(c, d.chu, .3), sz = tall ? 150 : 170, y = c.H * (tall ? .63 : .82);
+    if (d.do) word3d(x, c, d.chu, c.W / 2, y, sz, at, { maxW: .9 }); else inkWord(x, c, d.chu, c.W / 2, y, sz, at);
+    small(x, c, d.chu_tren, c.W / 2, c.H * (tall ? .17 : .14) + 70, tall ? 48 : 44, d.chu_tren ? hit(c, d.chu_tren, .1) : 0, INK); },
+  'khung'(x, c) { const d = c.data, tall = c.H > c.W, L = ASSET[c.id] || []; const k = c.lt / c.D;
+    L.slice(0, 2).reverse().forEach((a, j) => { const i = L.slice(0, 2).length - 1 - j, im = colOf(a), u = back(clamp((c.lt - i * .5) / .6), 1.1);
+      const w = c.W * (tall ? .74 : .46) * (i ? .8 : 1), cx = c.W * (i ? .62 : .44) + (1 - u) * c.W * (i ? .9 : -.9) - k * 20, cy = c.H * (tall ? (i ? .27 : .37) : .45);
+      if (c.lt > i * .5) frame(x, im, cx, cy, w, (i ? .07 : -.05) + k * .012); });
+    const at = hit(c, d.chu, .35), sz = tall ? 170 : 180; word3d(x, c, d.chu, c.W / 2, c.H * (tall ? .63 : .8), sz, at); },
+  'the'(x, c) { const d = c.data, tall = c.H > c.W, w = c.W * (tall ? .86 : .52), lines = String(d.chu || '').split('|'), u = back(clamp(c.lt / .55), 1.2);
+    const fs = tall ? 92 : 84, lh = fs * 1.18, h = lines.length * lh + fs * 1.4, cy = c.H * (tall ? .44 : .5) + (1 - u) * c.H * .6, rot = -.025 * (1 - u) + Math.sin(c.t * .7) * .004;
+    x.save(); x.translate(c.W / 2, cy); x.rotate(rot); x.shadowColor = 'rgba(0,0,0,.6)'; x.shadowBlur = 60; x.shadowOffsetY = 30; x.fillStyle = '#f1eee7'; x.fillRect(-w / 2, -h / 2, w, h);
+    x.shadowColor = 'transparent'; x.save(); x.globalAlpha = .5; x.beginPath(); x.rect(-w / 2, -h / 2, w, h); x.clip(); x.drawImage(noise(c.W, c.H), -w / 2, -h / 2); x.restore();
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    lines.forEach((l, i) => { const red = /^\*\*.*\*\*$/.test(l.trim()), t = l.trim().replace(/\*\*/g, ''), at = hit(c, t, .5 + i * .5); if (c.lt < at) return;
+      const f = fit(x, t, red ? fs * 1.35 : fs, w * .86, s => `900 ${s}px BVP`), a = eo3((c.lt - at) / .25); x.globalAlpha = a; x.font = `900 ${f}px BVP`; x.fillStyle = red ? RED : INK;
+      x.fillText(t, 0, -h / 2 + fs * .7 + lh * (i + .5) + (red ? fs * .1 : 0) + (1 - a) * 12); });
+    x.restore(); },
+};
+MS.film({
+  vignette: .5, fadeIn: .1, topShade: false,
+  transition: { type: 'cut' },
+  style: { subBg: 'rgba(241,238,231,.94)', subFg: '#141414', subHot: '#e0261b', subKey: '#c4170f', grain: 16, font: 'BVP,"Segoe UI",Arial,sans-serif' },
+  prepare: async TL => { await Promise.all(['900 100px BVP', '800 40px BVP', '500 26px OSW'].map(f => document.fonts.load(f, 'ẤỂỰ ĐÔ 01').catch(() => console.warn('font missing: ' + f + ' (xp setup --install fonts)'))));
+    BOOK = await (await fetch('giay_phep.json')).json().catch(() => ({})); WORDS = (TL.subs || []).flatMap(s => s.w || []).map(w => [w[0], w[1], w[2]]);
+    for (const s of TL.scenes) { const L = await load(s.id); for (const a of L) { htOf(a); colOf(a); htCutOf(a); } }
+    if (TL.scenes.some(s => (s.data || {}).vat3d)) { P3 = stage(MS.FORMATS[TL.format]); await P3.preload(TL); } },
+  gpu: () => P3 ? P3.gpu() : 'canvas2d',
+  post(x) { x.save(); x.globalCompositeOperation = 'soft-light'; x.fillStyle = 'rgba(200,170,130,.10)'; x.fillRect(0, 0, MS.FMT.W, MS.FMT.H); x.restore(); },
+  overlay(x, c) { if (c.lt < .1 && c.i > 0) { x.fillStyle = `rgba(${c.data.nen === 'giay' ? '255,252,245' : '0,0,0'},${(1 - c.lt / .1) * .7})`; x.fillRect(0, 0, c.W, c.H); } },
+  scenes: { '*': { async draw(x, c) {
+    const d = c.data, kieu = d.kieu || (d.tim ? 'cat-dan' : 'chu-3d'), nen = d.nen || (kieu === 'chu-3d' || kieu === 'the' ? 'toi' : 'giay');
+    if (!ASSET[c.id]) await load(c.id);
+    (nen === 'toi' ? bgDark : bgPaper)(x, c);
+    const k = c.lt / c.D, z = 1 + .035 * k; x.save(); x.translate(c.W / 2, c.H / 2); x.scale(z, z); x.translate(-c.W / 2, -c.H / 2);
+    (KIEU[kieu] || KIEU['chu-3d'])(x, { ...c, data: { ...d, nen } });
+    if (d.vat3d && P3) { const v = d.vat3d, tall = c.H > c.W, ev = v.su_kien ? hit(c, v.su_kien, c.D * (v.luc ?? .5)) : c.D * (v.luc ?? .5);
+      P3.draw(x, c.id, v.kieu, { lt: c.lt, D: c.D, t: c.t, ev }, { fx: v.x ?? .5, fy: v.y ?? (kieu === 'chu-3d' ? (tall ? .52 : .62) : .3), co: v.co ?? (kieu === 'chu-3d' ? 1.05 : .6), vao: v.vao ?? .1 }, v); }
+    x.restore();
+    if (!c.ra) chapter(x, { ...c, data: { ...d, nen } });
+  } } },
+});
+</script>

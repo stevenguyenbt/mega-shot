@@ -1,0 +1,6 @@
+# Core runtime (same set `xp` passes to `uv run --with`). Prefer running ./xp (or xp.cmd) with uv instead of pip.
+playwright==1.63.0
+pyyaml>=6
+ruamel.yaml>=0.18
+pillow>=10
+numpy>=1.26

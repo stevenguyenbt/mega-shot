@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="util.js"></script><script src="overlay.js"></script><script src="textfx.js"></script>
+<script>
+// Preview page for the text styles (xp text-styles). draw(kind, id, t) → draws the frame at time t (seconds).
+MS.FMT = MS.FORMATS['9x16']; MS.LANG = 'vi';
+const c = document.getElementById('c'), x = c.getContext('2d'), W = 1080, H = 1920, { clamp, lerp, rgen } = MS.u;
+const NAMES = {
+  box: 'Karaoke box (default)', 'karaoke-pop': 'Karaoke pop', highlight: 'Word highlight', 'word-burst': 'Word burst', typewriter: 'Typewriter', 'blur-in': 'Blur in', underline: 'Underline',
+  'word-rise': 'Word rise (default)', spring: 'Spring letters', 'mask-reveal': 'Mask reveal', decode: 'Decode', shine: 'Shine sweep', tracking: 'Cinematic tracking', stamp: 'Stamp',
+};
+// background: sunset sky + layered mountains + stars (procedural, no third-party images)
+const stars = (() => { const r = rgen(5); return [...Array(140)].map(() => [r() * W, r() * H * .5, r() * 1.8 + .4, r() * 6]); })();
+function bg(t) {
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#070b1f'); g.addColorStop(.38, '#1d1f4a'); g.addColorStop(.6, '#7a3c63'); g.addColorStop(.72, '#f08a4b'); g.addColorStop(1, '#2a1426');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  stars.forEach(([sx, sy, r, ph]) => { x.fillStyle = `rgba(255,255,255,${.35 + .35 * Math.sin(t * 2 + ph)})`; x.beginPath(); x.arc(sx, sy, r, 0, 7); x.fill(); });
+  MS.u.soft(x, W * .5, H * .7, 520, 300, '#ffb36b', .55);
+  x.fillStyle = '#ffd9a0'; x.beginPath(); x.arc(W * .5, H * .7 - t * 6, 120, 0, 7); x.fill();
+  [['#3b2347', .7, 120, .0021, 0], ['#26172f', .76, 150, .0034, 2], ['#140c1b', .83, 170, .0052, 5]].forEach(([col, y0, amp, fq, ph], k) => {
+    x.fillStyle = col; x.beginPath(); x.moveTo(0, H);
+    for (let px = 0; px <= W; px += 12) x.lineTo(px, H * y0 - amp * (.55 * Math.sin(px * fq + ph + t * .05 * (k + 1)) + .3 * Math.sin(px * fq * 2.7 + ph * 1.3) + .15 * Math.sin(px * fq * 6.1)));
+    x.lineTo(W, H); x.closePath(); x.fill(); });
+  x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(0, H * .86, W, H * .14);
+}
+function label(kind, id) {
+  x.save(); x.font = `800 52px ${MS.STYLE.font}`; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const s = (kind === 'sub' ? 'subtitle_style: ' : 'title_style: ') + id, w = x.measureText(s).width + 60;
+  x.fillStyle = 'rgba(8,10,20,.62)'; x.beginPath(); x.roundRect(W / 2 - w / 2, 84, w, 88, 44); x.fill(); x.fillStyle = MS.STYLE.accent; x.fillText(s, W / 2, 128);
+  x.font = `700 46px ${MS.STYLE.font}`; x.fillStyle = 'rgba(255,255,255,.85)'; x.fillText(NAMES[id] || id, W / 2, 222); x.restore();
+}
+// sample line (Vietnamese narration): per-word timestamps like xp builds from Whisper (key = highlighted word/number)
+const SENT = 'Get 1% better every day and in a year you are 37 times stronger'.split(' '), KEY = new Set(['1%', '37']);
+const SUBS = (() => { let t = .35; const w = SENT.map(s => { const d = .19 + s.length * .022, r = [s, t, t + d, KEY.has(s) ? 1 : 0]; t += d + .04; return r; }); return [{ s: SENT.join(' '), t0: .3, t1: t + .25, w }]; })();
+window.SUB_DUR = SUBS[0].t1 + .6; window.TITLE_DUR = 3.2;
+window.draw = (kind, id, t) => {
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.filter = 'none'; bg(t); label(kind, id);
+  if (kind === 'sub') { MS.STYLE.subtitle_style = id; MS.subtitle(x, t, SUBS); }
+  else { MS.title(x, 'THE VOLCANO AWAKENS', W / 2, H * .42, .25, t, 104, '#fff', id); }
+  return c.toDataURL('image/jpeg', .92);
+};
+</script>

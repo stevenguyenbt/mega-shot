@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mega-shot studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23ffb547'/><path d='M11 9l13 7-13 7z' fill='%23111'/></svg>">
+<style>
+:root{--bg:#0c0e13;--panel:#141821;--panel2:#1a1f2b;--line:#262c3a;--text:#e9ebf1;--mut:#8a92a6;--acc:#ffb547;--ok:#3ecf8e;--warn:#f5a524;--bad:#f16063;--blue:#6b95ff;--r:12px}
+*{box-sizing:border-box}html,body{margin:0;height:100%}body{background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;display:flex}
+a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;color:inherit}
+aside{width:228px;flex:none;background:#0a0c10;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 12px;gap:4px;position:sticky;top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;padding:4px 10px 18px}.logo i{width:30px;height:30px;border-radius:9px;background:var(--acc);display:grid;place-items:center;color:#111;font-style:normal;font-size:14px}
+.logo small{display:block;font-weight:500;color:var(--mut);font-size:11px;letter-spacing:.04em}
+nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;color:var(--mut);font-weight:500}nav a:hover{background:var(--panel);color:var(--text)}nav a.on{background:var(--panel2);color:var(--text)}
+nav a b{margin-left:auto;background:var(--acc);color:#111;border-radius:99px;font-size:11px;padding:0 7px}
+.side-foot{margin-top:auto;color:var(--mut);font-size:12px;padding:10px;border-top:1px solid var(--line)}
+main{flex:1;min-width:0;padding:28px 36px 120px;max-width:1500px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}h2{font-size:17px;margin:28px 0 12px}h3{font-size:14px;margin:0}
+.sub{color:var(--mut)}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel2);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.btn:hover{border-color:#3a4256;background:#202636}.btn.pri{background:var(--acc);border-color:var(--acc);color:#141414}.btn.pri:hover{filter:brightness(1.08)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}.btn.ghost{background:transparent}.btn.red{color:var(--bad)}.btn:disabled{opacity:.45;cursor:default}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);color:var(--mut)}
+.badge.ok{color:var(--ok);border-color:#1f4a3a}.badge.warn{color:var(--warn);border-color:#5a4318}.badge.bad{color:var(--bad);border-color:#5a2526}.badge.acc{color:var(--acc);border-color:#5a4318}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}.stat b{font-size:26px;display:block}.stat span{color:var(--mut);font-size:12.5px}
+.toolbar{display:flex;gap:8px;align-items:center;margin:8px 0 16px;flex-wrap:wrap}
+.chip{padding:6px 12px;border-radius:99px;border:1px solid var(--line);cursor:pointer;color:var(--mut);font-weight:600;font-size:12.5px;background:transparent}.chip.on{background:var(--text);color:#111;border-color:var(--text)}
+.search{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 12px;min-width:240px;outline:none}.search:focus{border-color:#4a5368}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:.15s}.card:hover{border-color:#3a4256;transform:translateY(-1px)}
+.thumb{aspect-ratio:16/9;background:linear-gradient(135deg,#1b2130,#24192e);position:relative;overflow:hidden;display:grid;place-items:center;color:#4a5368;font-size:30px}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}.thumb .tl{position:absolute;left:8px;top:8px;display:flex;gap:5px}.thumb .tr{position:absolute;right:8px;bottom:8px}
+.thumb .tl .badge,.thumb .tr .badge{background:rgba(10,12,16,.78);backdrop-filter:blur(4px)}
+.card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;flex:1}.card h3{font-size:15px;line-height:1.3}.card .meta{color:var(--mut);font-size:12.5px}
+.pipe{display:flex;gap:3px}.pipe i{flex:1;height:5px;border-radius:3px;background:#2a3040}.pipe i.xong{background:var(--ok)}.pipe i.cu{background:var(--warn)}.pipe i.loi{background:var(--bad)}.pipe i.run{background:var(--blue);animation:pulse 1s infinite alternate}
+@keyframes pulse{from{opacity:.4}to{opacity:1}}
+.card .foot{display:flex;align-items:center;gap:8px;margin-top:auto}.card .next{font-size:12.5px;color:var(--mut)}
+.crumb{color:var(--mut);font-size:13px;margin-bottom:8px}.crumb a:hover{color:var(--text)}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin:20px 0 6px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:6px;position:relative}
+.step .st{display:flex;align-items:center;gap:7px;font-weight:700;font-size:13px}.step .dot{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;background:#2a3040;color:var(--mut);flex:none}
+.step.xong .dot{background:var(--ok);color:#06281a}.step.cu .dot{background:var(--warn);color:#2b1d00}.step.loi .dot{background:var(--bad);color:#fff}.step.run{border-color:var(--blue)}.step.run .dot{background:var(--blue);color:#fff}
+.step .gh{color:var(--mut);font-size:12px;min-height:18px}.step .btn{margin-top:auto;align-self:flex-start}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:22px 0 18px}.tabs a{padding:9px 14px;color:var(--mut);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}.tabs a.on{color:var(--text);border-color:var(--acc)}
+.scene{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;display:grid;grid-template-columns:1fr;gap:10px}
+.scene .hd{display:flex;align-items:center;gap:10px}.scene .no{width:26px;height:26px;border-radius:8px;background:var(--panel2);display:grid;place-items:center;font-weight:700;font-size:12px;color:var(--mut)}
+textarea.loi{width:100%;background:#0f1218;border:1px solid var(--line);border-radius:9px;padding:10px 12px;resize:vertical;min-height:62px;outline:none;line-height:1.55}textarea.loi:focus{border-color:#4a5368}
+textarea.code{width:100%;min-height:62vh;background:#0f1218;border:1px solid var(--line);border-radius:var(--r);padding:14px;font:13px/1.55 Consolas,"Cascadia Code",monospace;outline:none;resize:vertical;tab-size:2}
+.voice{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--mut)}.voice audio{height:32px;max-width:300px}
+.heard{font-size:12.5px;color:var(--mut);font-style:italic}
+.cands{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}.cand{flex:none;width:168px;border-radius:9px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:var(--panel2);position:relative}
+.cand img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}.cand:hover{border-color:#4a5368}.cand.on{border-color:var(--ok)}.cand .n{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.7);border-radius:6px;padding:0 6px;font-size:11px;font-weight:700}
+.cand .on-l{position:absolute;right:6px;top:6px;background:var(--ok);color:#06281a;border-radius:6px;padding:0 6px;font-size:11px;font-weight:700}.cand .cap{font-size:11px;color:var(--mut);padding:4px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inp{background:#0f1218;border:1px solid var(--line);border-radius:8px;padding:6px 10px;outline:none;min-width:260px}.inp:focus{border-color:#4a5368}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}.shots img{width:100%;border-radius:9px;display:block;cursor:zoom-in;border:1px solid var(--line)}
+.player{width:100%;max-height:70vh;background:#000;border-radius:var(--r);display:block}
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}.file{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.file pre{white-space:pre-wrap;max-height:260px;overflow:auto;background:#0f1218;border-radius:8px;padding:10px;font-size:12.5px;margin:8px 0 0}
+.warns{display:flex;flex-direction:column;gap:6px}.warn{background:#2a2112;border:1px solid #5a4318;color:#ffd38a;border-radius:9px;padding:8px 12px;font-size:13px}
+.ok-box{background:#0f2a20;border:1px solid #1f4a3a;color:#8ff0c4;border-radius:9px;padding:8px 12px}
+table{width:100%;border-collapse:collapse}td,th{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--panel)}
+.jobs{display:grid;grid-template-columns:340px 1fr;gap:16px}.job{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:var(--panel)}.job.on{border-color:var(--acc)}
+.log{background:#07090c;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;font:12.5px/1.55 Consolas,monospace;height:68vh;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.log .w{color:var(--warn)}.log .e{color:var(--bad)}.log .c{color:var(--blue)}.log .g{color:var(--ok)}
+#dock{position:fixed;right:20px;bottom:20px;width:380px;display:flex;flex-direction:column;gap:8px;z-index:20}
+.dk{background:#161b26f2;border:1px solid #333b4f;border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px #0008;backdrop-filter:blur(8px)}
+.dk .t{font-weight:700;display:flex;gap:8px;align-items:center}.dk .l{color:var(--mut);font-size:12px;font-family:Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:4px 0 8px}
+.bar{height:5px;background:#2a3040;border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--blue);transition:width .4s}.bar.ind i{width:35%!important;animation:ind 1.3s infinite linear}
+@keyframes ind{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+.spin{width:12px;height:12px;border:2px solid #5b6a8f;border-top-color:var(--blue);border-radius:50%;animation:sp 0.8s linear infinite;display:inline-block}@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:40}
+.ts{background:#1d2331;border:1px solid #3a4256;padding:10px 16px;border-radius:10px;box-shadow:0 8px 24px #0008;animation:tin .2s}.ts.bad{border-color:var(--bad)}.ts.ok{border-color:var(--ok)}@keyframes tin{from{opacity:0;transform:translateY(-6px)}}
+.ov{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:30;padding:20px}.md{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:min(520px,100%);max-height:90vh;overflow:auto}
+.md.wide{width:min(1100px,100%)}.md label{display:block;font-weight:600;font-size:13px;margin:14px 0 6px}.md .inp,.md select{width:100%}
+select{background:#0f1218;border:1px solid var(--line);border-radius:8px;padding:7px 10px;outline:none}
+.seg{display:flex;background:#0f1218;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}.seg button{flex:1;border:0;background:transparent;padding:8px;border-radius:8px;cursor:pointer;color:var(--mut);font-weight:600}.seg button.on{background:var(--panel2);color:var(--text)}
+.hint{color:var(--mut);font-size:12.5px;margin-top:6px}.empty{padding:40px;text-align:center;color:var(--mut);border:1px dashed var(--line);border-radius:var(--r)}
+.guide{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}.guide .file h3{margin-bottom:6px}.guide ol{margin:6px 0 0;padding-left:20px;color:#c9cdd8}.guide code{background:#0f1218;padding:1px 6px;border-radius:5px;font-size:12.5px}
+.drop{border:2px dashed #3a4256;border-radius:10px;aspect-ratio:16/9;display:grid;place-items:center;color:var(--mut);cursor:pointer;text-align:center;padding:14px;font-size:13px;background:#0f1218}.drop:hover,.drop.hv{border-color:var(--acc);color:var(--text)}
+.abv{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}.abv .card img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover;cursor:zoom-in}
+.prompt{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;grid-template-columns:1fr 260px;gap:14px;margin-bottom:12px}.prompt pre{white-space:pre-wrap;background:#0f1218;border-radius:8px;padding:10px;font-size:12.5px;margin:8px 0 0;max-height:180px;overflow:auto}
+#topbar,#scrim{display:none}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px;padding-bottom:6px;scrollbar-width:thin}.tw::-webkit-scrollbar{height:8px}.tw::-webkit-scrollbar-thumb{background:#2a3242;border-radius:8px}
+.kt{table-layout:fixed;width:100%;min-width:1134px}.kt td{vertical-align:top;overflow-wrap:break-word}.kt td:nth-child(4),.kt td:nth-child(5),.kt td:nth-child(6){vertical-align:middle}.kt td:last-child{white-space:nowrap}
+@media (max-width:900px){
+  body{display:block}
+  #topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;background:#0a0c10ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 14px}
+  #topbar button{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;width:40px;height:40px;font-size:20px;line-height:1;cursor:pointer}
+  #topbar b{font-size:15px}#topbar span{color:var(--mut);font-size:12px;margin-left:auto}
+  aside{position:fixed;left:0;top:0;bottom:0;z-index:60;width:260px;height:100%;transform:translateX(-105%);transition:transform .22s ease;box-shadow:8px 0 30px #0008}
+  body.nav-open aside{transform:none}
+  #scrim{position:fixed;inset:0;z-index:50;background:#0009}body.nav-open #scrim{display:block}
+  table:not(.kt){display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}table:not(.kt)>tbody{display:table;width:100%;min-width:760px}
+  td,th{padding:9px 10px}table:not(.kt) td:first-child,table:not(.kt) th:first-child{min-width:220px}
+  .file{padding:12px}h1{font-size:22px}
+}
+@media (max-width:900px){main{padding:18px}.steps{grid-template-columns:repeat(3,1fr)}.stats{grid-template-columns:repeat(2,1fr)}.jobs{grid-template-columns:1fr}#dock{left:12px;right:12px;width:auto}}
+</style>
+<body>
+<div id="topbar"><button aria-label="Open menu" onclick="document.body.classList.toggle('nav-open')">☰</button><b>mega-shot studio</b><span id="tb-r"></span></div>
+<div id="scrim" onclick="document.body.classList.remove('nav-open')"></div>
+<aside>
+  <div class="logo"><i>▶</i><div>mega-shot<small>STUDIO</small></div></div>
+  <nav id="nav">
+    <a href="#/" data-r="">🏠&nbsp; Projects</a>
+    <a href="#/thu-vien" data-r="thu-vien">🎞&nbsp; Video library</a>
+    <a href="#/kenh" data-r="kenh">📺&nbsp; Auto channels</a>
+    <a href="#/viec" data-r="viec">⚙️&nbsp; Running jobs <b id="nav-n" hidden></b></a>
+    <a href="#/huong-dan" data-r="huong-dan">📘&nbsp; Guide</a>
+  </nav>
+  <div class="side-foot">Runs on your machine · only listens on 127.0.0.1<br><span id="goc"></span></div>
+</aside>
+<main id="app"></main>
+<div id="dock"></div><div id="toast"></div><div id="ov"></div>
+<script>
+const TOKEN = '__TOKEN__';
+const $ = s => document.querySelector(s), app = $('#app');
+const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const F = p => '/f/' + p.split('/').map(encodeURIComponent).join('/');
+const BIA = (p, v) => p ? `/bia?f=${encodeURIComponent(p)}&v=${v || 0}` : null;
+const ACTS = []; const on = f => (ACTS.push(f), `A(${ACTS.length - 1},event)`); window.A = (i, ev) => ACTS[i](ev);
+const STEPS = [['kich_ban', 'Script', '✎'], ['giong', 'Voice', '🎙'], ['hinh', 'Visuals / footage', '🖼'], ['am', 'Audio mix', '🎚'], ['render', 'Render', '🎬'], ['xuat', 'Export', '📦']];
+const NEXT = { kich_ban: 'Write the script', giong: 'Generate the voice', hinh: 'Fetch visuals / footage', am: 'Mix audio', render: 'Render', xuat: 'Export' };
+const TT = { xong: 'Done', cu: 'Needs redo', chua: 'Not done', loi: 'Error' };
+const KHUNG = { '9x16': 'Vertical 9:16', '16x9': 'Landscape 16:9', '1x1': 'Square 1:1' };
+const fmtT = s => { if (s == null) return ''; s = Math.round(s); return s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` };
+const ago = t => { const d = Date.now() / 1000 - t; return d < 60 ? 'just now' : d < 3600 ? `${Math.floor(d / 60)} min ago` : d < 86400 ? `${Math.floor(d / 3600)} h ago` : `${Math.floor(d / 86400)} d ago` };
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+
+async function api(p) { const r = await fetch(p); const j = await r.json(); if (!r.ok) throw new Error(j.loi || r.status); return j }
+async function post(p, b) { const r = await fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Studio': TOKEN }, body: JSON.stringify(b) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.loi || r.status); return j }
+function toast(m, k = '') { const d = document.createElement('div'); d.className = 'ts ' + k; d.textContent = m; $('#toast').append(d); setTimeout(() => d.remove(), k === 'bad' ? 7000 : 3500) }
+const tryDo = f => async ev => { try { await f(ev) } catch (x) { toast(x.message, 'bad') } };
+
+// ------------------------------------------------------------ job queue
+let ACTIVE = [], LASTDONE = new Set(), DIRTY = false;
+async function run(p, cmds, ten) { const j = await post('/api/chay', { p, cmds, ten }); toast(`Queued: ${ten}`); poll(); return j }
+const stepCmds = (info, k) => k === 'giong' ? [['giong']] : k === 'hinh' ? (info.buoc.hinh.lenh || []) : k === 'am' ? [['am']] : k === 'render' ? [['render']] : k === 'xuat' ? (info.trong_loat ? [] : [['xuat'], ['kiemtra']]) : [];
+function restCmds(info) { const i = STEPS.findIndex(([k]) => k === info.tiep); if (i < 1) return []; return STEPS.slice(i).flatMap(([k]) => stepCmds(info, k)) }
+let pollT;
+async function poll() {
+  clearTimeout(pollT);
+  try {
+    const all = await api('/api/viec'); const act = all.filter(j => j.tt === 'cho' || j.tt === 'chay');
+    const finished = all.filter(j => ['xong', 'loi', 'huy'].includes(j.tt) && ACTIVE.some(a => a.id === j.id));
+    ACTIVE = act; renderDock();
+    for (const j of finished) {
+      toast(`${j.tt === 'xong' ? '✓ Done' : j.tt === 'loi' ? '✗ Failed' : '■ Cancelled'}: ${j.ten} (${j.cwd.split('/').pop()})`, j.tt === 'xong' ? 'ok' : 'bad');
+      if (document.hidden && Notification?.permission === 'granted') new Notification(`mega-shot: ${j.tt === 'xong' ? 'done' : 'failed'}`, { body: `${j.ten} · ${j.cwd}` });
+    }
+    if (finished.length && !DIRTY && !location.hash.startsWith('#/viec')) route(true);
+    const n = $('#nav-n'); n.hidden = !act.length; n.textContent = act.length;
+  } catch (x) { }
+  pollT = setTimeout(poll, ACTIVE.length ? 1200 : 5000);
+}
+function renderDock() {
+  const r = ACTIVE.find(j => j.tt === 'chay'), w = ACTIVE.filter(j => j.tt === 'cho').length;
+  $('#dock').innerHTML = !r ? '' : `<div class="dk"><div class="t"><span class="spin"></span>${e(r.ten)}<span class="sp"></span><span class="badge">${e(r.cwd.replace('videos/', ''))}</span></div>
+    <div class="l">${e(r.dong_cuoi)}</div><div class="bar ${r.tien_do == null ? 'ind' : ''}"><i style="width:${(r.tien_do || 0) * 100}%"></i></div>
+    <div class="row" style="margin-top:8px"><span class="sub" style="font-size:12px">${r.tien_do != null ? Math.round(r.tien_do * 100) + '% · ' : ''}${fmtT(Date.now() / 1000 - r.bd)}${w ? ` · ${w} queued` : ''}</span><span class="sp"></span>
+    <a class="btn sm ghost" href="#/viec/${r.id}">Log</a><button class="btn sm red" onclick="${on(tryDo(() => post('/api/huy', { id: r.id }).then(poll)))}">Cancel</button></div></div>`;
+}
+const runningFor = p => ACTIVE.find(j => j.tt === 'chay' && (j.cwd === p || j.cwd.startsWith(p + '/')));
+
+// ------------------------------------------------------------ overview
+let FILTER = 'all', Q = '';
+async function vHome() {
+  const d = await api('/api/tong-quan'); $('#goc').textContent = d.goc;
+  const vids = d.muc.filter(m => m.loai === 'video'), loats = d.muc.filter(m => m.loai === 'loat');
+  const done = d.muc.filter(m => m.loai === 'video' ? m.buoc?.xuat?.tt === 'xong' : m.ghep === 'xong').length;
+  const warn = d.muc.filter(m => (m.canh_bao || []).length || m.loi).length;
+  const items = d.muc.filter(m => (FILTER === 'all' || (FILTER === 'loat' && m.loai === 'loat') || (FILTER === 'dang' && !isDone(m)) || (FILTER === 'xong' && isDone(m)))
+    && (!Q || (m.ten + ' ' + (m.tieu_de || '')).toLowerCase().includes(Q.toLowerCase())));
+  app.innerHTML = `<div class="row"><div><h1>Your projects</h1><div class="sub">Every video and series in <code>videos/</code> — status is read straight from the files.</div></div><span class="sp"></span>
+    <button class="btn" onclick="${on(() => newDlg('video'))}">＋ Short video</button><button class="btn pri" onclick="${on(() => newDlg('loat'))}">＋ YouTube series</button></div>
+    <div class="stats"><div class="stat"><b>${vids.length}</b><span>Video</span></div><div class="stat"><b>${loats.length}</b><span>Multi-episode series</span></div>
+    <div class="stat"><b style="color:var(--ok)">${done}</b><span>Exported</span></div><div class="stat"><b style="color:${warn ? 'var(--warn)' : 'inherit'}">${warn}</b><span>Needs attention</span></div></div>
+    <div class="toolbar">${[['all', 'All'], ['dang', 'In progress'], ['xong', 'Done'], ['loat', 'YouTube series']].map(([k, t]) => `<button class="chip ${FILTER === k ? 'on' : ''}" onclick="${on(() => { FILTER = k; vHome() })}">${t}</button>`).join('')}
+    <span class="sp"></span><input class="search" placeholder="Search by name…" value="${e(Q)}" oninput="${on(ev => { Q = ev.target.value; clearTimeout(window._q); window._q = setTimeout(() => vHome().then(() => { const s = $('.search'); s.focus(); s.setSelectionRange(99, 99) }), 250) })}"></div>
+    ${items.length ? `<div class="grid">${items.map(card).join('')}</div>` : `<div class="empty">Nothing here yet. Click <b>＋ Short video</b> or <b>＋ YouTube series</b> to get started.</div>`}`;
+}
+const isDone = m => m.loai === 'video' ? m.buoc?.xuat?.tt === 'xong' : m.ghep === 'xong';
+function pipe(m) { const r = runningFor(m.p); return `<div class="pipe">${STEPS.map(([k]) => `<i class="${r && m.tiep === k ? 'run' : m.buoc?.[k]?.tt || ''}" title="${NEXT[k]}: ${TT[m.buoc?.[k]?.tt] || ''}"></i>`).join('')}</div>` }
+function card(m) {
+  const img = m.bia ? `<img loading="lazy" src="${BIA(m.bia, m.sua_luc)}" onerror="this.remove()">` : '';
+  const w = (m.canh_bao || []).length + (m.loi ? 1 : 0);
+  if (m.loai === 'loat') return `<a class="card" href="#/l/${encodeURIComponent(m.p)}"><div class="thumb">${img || '📚'}<div class="tl"><span class="badge acc">SERIES · ${m.so_tap} episodes</span><span class="badge">${KHUNG[m.khung] || m.khung}</span></div>
+    ${m.thoi_luong ? `<div class="tr"><span class="badge">${fmtT(m.thoi_luong)}</span></div>` : ''}</div><div class="body"><h3>${e(m.tieu_de || m.ten)}</h3><div class="meta">${e(m.ten)} · edited ${ago(m.sua_luc)}</div>
+    <div class="pipe">${(m.tap || []).map(t => `<i class="${t.buoc?.render?.tt || ''}" title="${e(t.tieu_de_tap)}"></i>`).join('')}<i class="${m.ghep}" title="Assembled YouTube video" style="flex:1.6"></i></div>
+    <div class="foot"><span class="next">${m.tap_xong}/${m.so_tap} episodes rendered · assembled: ${TT[m.ghep]}</span><span class="sp"></span>${w ? `<span class="badge warn">⚠ ${w}</span>` : ''}</div></div></a>`;
+  const r = runningFor(m.p);
+  return `<a class="card" href="#/v/${encodeURIComponent(m.p)}"><div class="thumb">${img || '🎬'}<div class="tl"><span class="badge">${KHUNG[m.khung] || m.khung || '?'}</span>${m.mau ? `<span class="badge">${e(m.mau)}</span>` : ''}</div>
+    ${m.thoi_luong ? `<div class="tr"><span class="badge">${fmtT(m.thoi_luong)}</span></div>` : ''}</div>
+    <div class="body"><h3>${e(m.ten)}</h3><div class="meta">${m.loi ? `<span style="color:var(--bad)">${e(m.loi)}</span>` : `${m.so_canh || 0} scenes · ${m.so_chu || 0} words · edited ${ago(m.sua_luc)}`}</div>${pipe(m)}
+    <div class="foot">${r ? `<span class="next"><span class="spin"></span> running…</span>` : m.tiep ? `<span class="next">Next: <b style="color:var(--text)">${NEXT[m.tiep]}</b></span>` : `<span class="badge ok">✓ Complete</span>`}
+    <span class="sp"></span>${w ? `<span class="badge warn">⚠ ${w}</span>` : ''}</div></div></a>`;
+}
+
+// ------------------------------------------------------------ video detail
+let TAB = 'canh';
+async function vVideo(p, keep) {
+  const m = await api('/api/video?p=' + encodeURIComponent(p)); const r = runningFor(p); const loat = m.trong_loat ? p.split('/').slice(0, -1).join('/') : null;
+  const steps = STEPS.map(([k, t, ic]) => {
+    const s = m.buoc[k] || {}; const cls = (r && m.tiep === k) ? 'run' : s.tt; const cmds = stepCmds(m, k);
+    return `<div class="step ${cls}"><div class="st"><span class="dot">${s.tt === 'xong' ? '✓' : s.tt === 'cu' ? '↻' : s.tt === 'loi' ? '!' : ic}</span>${t}</div>
+      <div class="gh">${e(s.ghi || TT[s.tt] || '')}${s.canh_bao ? `<br><span style="color:var(--warn)">⚠ ${e(s.canh_bao)}</span>` : ''}</div>
+      ${k === 'kich_ban' ? `<a class="btn sm" href="#/v/${encodeURIComponent(p)}/yaml">Edit</a>` : cmds.length ? `<button class="btn sm ${m.tiep === k ? 'pri' : ''}" onclick="${on(tryDo(() => run(p, cmds, NEXT[k])))}">${s.tt === 'xong' ? 'Run again' : 'Run'}</button>` : ''}</div>`
+  }).join('');
+  const rest = restCmds(m);
+  const tabs = [['canh', `Scenes (${m.canh.length})`], ['thu', 'Preview'], ['xuat', 'Output'], ['anhbia', 'Thumbnails'], ['yaml', 'Script YAML'], ['kiemtra', `Checks${m.canh_bao.length ? ` ⚠${m.canh_bao.length}` : ''}`]];
+  app.innerHTML = `<div class="crumb"><a href="#/">Projects</a> / ${loat ? `<a href="#/l/${encodeURIComponent(loat)}">${e(loat.split('/').pop())}</a> / ` : ''}${e(p.split('/').pop())}</div>
+    <div class="row"><div><h1>${e(m.ten)}</h1><div class="row"><span class="badge">${KHUNG[m.khung]}</span><span class="badge">${e(m.mau)}</span><span class="badge">${e(m.ngon_ngu)}</span>${m.thoi_luong ? `<span class="badge">${fmtT(m.thoi_luong)}</span>` : ''}${m.trong_loat ? '<span class="badge acc">episode in a series</span>' : ''}</div></div><span class="sp"></span>
+    <button class="btn ghost" onclick="${on(tryDo(() => post('/api/mo-thu-muc', { p })))}">📂 Open folder</button>
+    ${rest.length ? `<button class="btn pri" onclick="${on(tryDo(() => run(p, rest, 'Run all remaining steps')))}">▶ Run all remaining steps</button>` : '<span class="badge ok">✓ All steps complete</span>'}</div>
+    <div class="steps">${steps}</div>
+    <div class="tabs">${tabs.map(([k, t]) => `<a href="#/v/${encodeURIComponent(p)}/${k}" class="${TAB === k ? 'on' : ''}">${t}</a>`).join('')}</div><div id="tab"></div>`;
+  const T = $('#tab');
+  if (TAB === 'canh') T.innerHTML = m.canh.map((c, i) => sceneHtml(m, p, c, i)).join('') || '<div class="empty">No scenes yet — open the Script YAML tab.</div>';
+  if (TAB === 'thu') T.innerHTML = `<div class="row"><button class="btn pri" onclick="${on(tryDo(() => run(p, [['thu']], 'Capture preview frames')))}" ${m.buoc.giong.tt === 'chua' ? 'disabled title="generate the voice first"' : ''}>📸 Capture preview frames (mid-scene)</button><span class="sub">Quickly check each scene's visuals before rendering the whole video.</span></div><h2></h2>
+    ${m.thu.length ? `<div class="shots">${m.thu.map((s, i) => `<div><img loading="lazy" src="${BIA(s, m.thu_mt)}" onclick="${on(() => lightbox(F(s) + '?v=' + m.thu_mt))}"><div class="hint">${e(m.canh[i]?.id || '')}</div></div>`).join('')}</div>` : '<div class="empty">No preview frames yet.</div>'}`;
+  if (TAB === 'xuat') {
+    const vid = m.file || m.raw; T.innerHTML = vid ? `<video class="player" controls preload="metadata" poster="${BIA(vid, m.sua_luc)}" src="${F(vid)}?v=${m.sua_luc}"></video><div class="hint">${e(vid)}</div>` : '<div class="empty">No video yet — run the steps above.</div>';
+    if (m.files.length) T.innerHTML += `<h2>Files</h2>${filesHtml(m.files)}`;
+  }
+  if (TAB === 'yaml') yamlEditor(T, p, m.yaml, false);
+  if (TAB === 'anhbia') T.innerHTML = anhBiaHtml(m.anh_bia, p);
+  if (TAB === 'kiemtra') { const k = m.kiemtra; T.innerHTML = `<div class="row"><button class="btn" onclick="${on(tryDo(() => run(p, [['kiemtra']], 'Quality check')))}">🔍 Check again</button></div><h2>Warnings</h2>
+    ${m.canh_bao.length ? `<div class="warns">${m.canh_bao.map(w => `<div class="warn">⚠ ${e(w)}</div>`).join('')}</div>` : '<div class="ok-box">✓ No warnings</div>'}
+    ${k ? `<h2>Metrics</h2><div class="stats"><div class="stat"><b>${fmtT(k.thoi_luong)}</b><span>Duration</span></div><div class="stat"><b>${k.dung_luong_mb} MB</b><span>File size</span></div><div class="stat"><b>${k.do_to_lufs ?? '?'}</b><span>Loudness (LUFS, target −14)</span></div><div class="stat"><b>${k.dung_yen_dai_nhat_s ?? 0}s</b><span>Longest still frame</span></div></div>` : ''}` }
+}
+function sceneHtml(m, p, c, i) {
+  const id = 'l' + i, cands = c.phuong_an || [];
+  return `<div class="scene"><div class="hd"><span class="no">${i + 1}</span><h3>${e(c.id)}</h3>${c.t0 != null ? `<span class="badge">${fmtT(c.t0)} → ${fmtT(c.t1)}</span>` : ''}${c.chu ? `<span class="badge">text: ${e(c.chu)}</span>` : ''}${c.blender ? `<span class="badge">Blender: ${e(c.blender)}</span>` : ''}<span class="sp"></span>
+    <button class="btn sm" id="${id}b" disabled onclick="${on(tryDo(async () => { await post('/api/sua-canh', { p, id: c.id, loi: $('#' + id).value }); DIRTY = false; toast('Line saved'); await run(p, [['giong']], 'Re-read edited line') }))}">💾 Save & re-read</button></div>
+    <textarea class="loi" id="${id}" rows="2" oninput="${on(ev => { DIRTY = true; $('#' + id + 'b').disabled = ev.target.value.trim() === String(c.loi).trim(); ev.target.style.height = 'auto'; ev.target.style.height = ev.target.scrollHeight + 'px' })}">${e(c.loi)}</textarea>
+    ${c.am ? `<div class="voice"><audio controls preload="none" src="${F(c.am)}?v=${m.sua_luc}"></audio>${c.khop != null ? `<span class="badge ${c.khop >= .85 && !c.chen_dau ? 'ok' : c.khop >= .7 && !c.chen_dau ? '' : 'warn'}">match ${Math.round(c.khop * 100)}%${c.chen_dau ? ' · possible extra leading word' : ''}</span>` : ''}${c.dai ? `<span>${c.dai}s</span>` : ''}
+      <span class="sp"></span><button class="btn sm ghost" onclick="${on(tryDo(() => run(p, [['giong', '--lam-lai', c.id]], 'Re-read ' + c.id)))}">🎙 Re-read this line</button></div>${c.nghe_lai ? `<div class="heard">Heard back: “${e(c.nghe_lai)}”</div>` : ''}` : c.loi ? '<div class="hint">No voice for this line yet.</div>' : ''}
+    ${c.tim ? `<div class="row"><span class="sub" style="font-size:12.5px">🔎 Footage keywords (English):</span><input class="inp" id="${id}q" value="${e((Array.isArray(c.tim) ? c.tim[0] : c.tim).q || c.tim)}"><span class="badge">${e((Array.isArray(c.tim) ? c.tim[0] : c.tim).loai || 'video')}${Array.isArray(c.tim) ? ` · ${c.tim.length} clip` : ''}</span>
+      <button class="btn sm" onclick="${on(tryDo(async () => { await post('/api/sua-canh', { p, id: c.id, q: $('#' + id + 'q').value }); await run(p, [['timtainguyen', c.id]], 'Find footage ' + c.id) }))}">Search again</button>
+      ${c.tai_nguyen ? `<span class="sp"></span><a class="sub" style="font-size:12px" target="_blank" href="${e(c.tai_nguyen.trang)}">${e(c.tai_nguyen.nguon)} · ${e(c.tai_nguyen.tac_gia || '')} ↗</a>` : ''}</div>
+      ${cands.length ? `<div class="cands">${cands.map(x => `<div class="cand ${x.dang_dung ? 'on' : ''}" title="${e(x.tags)}" onclick="${on(tryDo(async () => { if (x.dang_dung) return; await post('/api/sua-canh', { p, id: c.id, chon: x.so }); await run(p, [['timtainguyen', c.id]], `Use option ${x.so} for ${c.id}`) }))}">
+        ${x.anh ? `<img loading="lazy" src="${BIA(x.anh)}">` : '<div style="aspect-ratio:16/9"></div>'}<span class="n">${x.so}</span>${x.dang_dung ? '<span class="on-l">in use</span>' : ''}<div class="cap">${e(x.nguon)} · ${x.dai ? Math.round(x.dai) + 's · ' : ''}${x.w || ''}×${x.h || ''}</div></div>`).join('')}</div>
+        <div class="hint">Click an option to use it (auto-downloads and re-trims), then re-run the <b>Render</b> step.</div>` : ''}` : ''}</div>`;
+}
+function filesHtml(fs) {
+  return `<div class="files">${fs.map(f => `<div class="file"><div class="row"><b>${e(f.ten)}</b>${f.mb != null ? `<span class="badge">${f.mb} MB</span>` : ''}<span class="sp"></span>
+    ${f.noi_dung != null ? `<button class="btn sm" onclick="${on(() => navigator.clipboard.writeText(f.noi_dung).then(() => toast('Copied ' + f.ten)))}">📋 Copy</button>` : ''}<a class="btn sm ghost" href="${F(f.p)}" download>⬇</a></div>
+    ${/\.(jpg|png)$/i.test(f.ten) ? `<img loading="lazy" src="${BIA(f.p, f.luc)}" style="width:100%;border-radius:8px;margin-top:8px">` : ''}${/\.mp4$/i.test(f.ten) ? `<video controls preload="none" src="${F(f.p)}" style="width:100%;border-radius:8px;margin-top:8px;background:#000"></video>` : ''}
+    ${f.noi_dung != null ? `<pre>${e(f.noi_dung)}</pre>` : ''}</div>`).join('')}</div>`
+}
+function yamlEditor(T, p, text, loat) {
+  T.innerHTML = `<div class="row" style="margin-bottom:10px"><button class="btn pri" id="ysave" disabled>💾 Save</button><span class="hint" style="margin:0">Ctrl+S to save · file names / strings that look like numbers (e.g. <code>"2015"</code>) must be in double quotes</span></div><textarea class="code" id="ytext" spellcheck="false">${e(text)}</textarea>`;
+  const ta = $('#ytext'), b = $('#ysave'); const save = tryDo(async () => { await post('/api/luu', { p, text: ta.value, loat }); DIRTY = false; b.disabled = true; toast('Saved', 'ok') });
+  ta.oninput = () => { DIRTY = ta.value !== text; b.disabled = !DIRTY }; b.onclick = save;
+  ta.onkeydown = ev => { if (ev.key === 's' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); save() } if (ev.key === 'Tab') { ev.preventDefault(); document.execCommand('insertText', false, '  ') } };
+}
+
+// ------------------------------------------------------------ thumbnails
+function dropZone(p, ten, label) {
+  const up = tryDo(async f => {
+    if (!f || !/^image\//.test(f.type)) throw new Error('Please choose an image file');
+    const du_lieu = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f) });
+    await post('/api/tai-anh', { p, ten, duoi: f.name.split('.').pop(), du_lieu }); toast('Saved image ' + ten, 'ok'); await run(p, [['anhbia', ten]], 'Make thumbnail ' + ten);
+  });
+  return `<label class="drop" ondragover="${on(ev => { ev.preventDefault(); ev.currentTarget.classList.add('hv') })}" ondragleave="${on(ev => ev.currentTarget.classList.remove('hv'))}"
+    ondrop="${on(ev => { ev.preventDefault(); ev.currentTarget.classList.remove('hv'); up(ev.dataTransfer.files[0]) })}">
+    <span>⬇ ${label || 'Drag an AI image here<br>or click to choose'}<br><small>saved as <b>anh_bia/${e(ten)}</b></small></span><input type="file" accept="image/*" hidden onchange="${on(ev => up(ev.target.files[0]))}"></label>`;
+}
+function anhBiaHtml(a, p) {
+  if (!a || !a.co_cau_hinh) return `<div class="empty">No thumbnail config yet.<br><br><button class="btn pri" onclick="${on(tryDo(() => run(p, [['anhbia', 'moi']], 'Create thumbnail config')))}">＋ Create thumbnail config</button>
+    <div class="hint">Or ask Claude: “make a thumbnail for this video” — Claude writes the AI prompts and picks good frames for you.</div></div>`;
+  const ready = a.phien_ban.filter(v => v.co_nguon).length;
+  return `${a.loi ? `<div class="warn">${e(a.loi)}</div>` : ''}<div class="row"><button class="btn pri" ${ready ? '' : 'disabled'} onclick="${on(tryDo(() => run(p, [['anhbia']], 'Make thumbnails')))}">🎨 Make thumbnails (${ready} version(s) with a source image)</button>
+    <span class="sub">Upload up to 3 versions to YouTube Studio › Test &amp; compare so YouTube picks the one that gets the most clicks.</span></div>
+    ${a.xem_truoc ? `<h2>Preview on the YouTube home page</h2><img src="${BIA(a.xem_truoc, a.xt_luc)}" style="width:100%;border-radius:12px;border:1px solid var(--line);cursor:zoom-in" onclick="${on(() => lightbox(F(a.xem_truoc) + '?v=' + a.xt_luc))}">` : ''}
+    <h2>Versions</h2><div class="abv">${a.phien_ban.map(v => `<div class="card">${v.anh ? `<img loading="lazy" src="${BIA(v.anh, v.luc)}" onclick="${on(() => lightbox(F(v.anh) + '?v=' + v.luc))}">` : v.ai ? dropZone(p, v.ten) : '<div class="thumb">⏳</div>'}
+      <div class="body"><div class="row"><h3>${e(v.ten)}</h3><span class="badge ${v.ai ? 'acc' : ''}">${v.ai ? 'AI image' : 'real frame'}</span><span class="badge">${e(v.bo_cuc)}</span></div>
+      <div class="meta">“${e((v.chu || []).map(x => x.replace(/^[*^]/, '')).join(' / '))}”</div>
+      <div class="foot">${v.anh ? `<a class="btn sm" href="${F(v.anh)}" download>⬇ Download</a>` : ''}${v.co_nguon ? `<button class="btn sm ghost" onclick="${on(tryDo(() => run(p, [['anhbia', v.ten]], 'Redo thumbnail ' + v.ten)))}">↻ Redo</button>` : '<span class="next">No source image yet</span>'}
+      ${v.ai && v.anh ? `<span class="sp"></span><label class="btn sm ghost" style="cursor:pointer">🔁 Replace image<input type="file" accept="image/*" hidden onchange="${on(tryDo(async ev => { const f = ev.target.files[0]; const r = new FileReader(); const d = await new Promise(ok => { r.onload = () => ok(r.result); r.readAsDataURL(f) }); await post('/api/tai-anh', { p, ten: v.ten, duoi: f.name.split('.').pop(), du_lieu: d }); await run(p, [['anhbia', v.ten]], 'Redo thumbnail ' + v.ten) }))}"></label>` : ''}</div></div></div>`).join('')}</div>
+    ${a.loi_nhac.length ? `<h2>AI image prompts</h2><div class="sub" style="margin:-6px 0 12px">Copy the prompt → paste it into ChatGPT/Gemini (choose 16:9 landscape) → drag the resulting image into the box on the right.</div>
+      ${a.loi_nhac.map(l => `<div class="prompt"><div><div class="row"><h3>${e(l.tieu_de)}</h3><span class="sp"></span><button class="btn sm" onclick="${on(() => navigator.clipboard.writeText(l.prompt).then(() => toast('Prompt copied')))}">📋 Copy prompt</button></div><pre>${e(l.prompt)}</pre></div>
+      <div>${l.ten ? dropZone(p, l.ten) : ''}</div></div>`).join('')}` : ''}`;
+}
+
+// ------------------------------------------------------------ series detail
+let LTAB = 'tap';
+async function vLoat(p) {
+  const m = await api('/api/loat?p=' + encodeURIComponent(p)); const r = runningFor(p);
+  const yt = m.files.find(f => f.ten.endsWith('_youtube.mp4')), pv = m.files.find(f => f.ten.endsWith('_xem_thu.mp4'));
+  const notReady = m.tap.filter(t => t.buoc?.render?.tt !== 'xong').length;
+  app.innerHTML = `<div class="crumb"><a href="#/">Projects</a> / ${e(m.ten)}</div>
+    <div class="row"><div><h1>${e(m.tieu_de || m.ten)}</h1><div class="sub">${e(m.mo_ta)}</div><div class="row" style="margin-top:6px"><span class="badge acc">SERIES · ${m.so_tap} episodes</span><span class="badge">${KHUNG[m.khung]}</span>${m.thoi_luong ? `<span class="badge">${fmtT(m.thoi_luong)}</span>` : ''}<span class="badge ${m.ghep === 'xong' ? 'ok' : m.ghep === 'cu' ? 'warn' : ''}">Assembled: ${TT[m.ghep]}</span></div></div><span class="sp"></span>
+    <button class="btn ghost" onclick="${on(tryDo(() => post('/api/mo-thu-muc', { p })))}">📂 Open folder</button>
+    <button class="btn" onclick="${on(tryDo(async () => { const t = await post('/api/them-tap', { p }); toast('Added ' + t.tap); location.hash = `#/v/${encodeURIComponent(p + '/' + t.tap)}/yaml` }))}">＋ Add episode</button>
+    <button class="btn" onclick="${on(tryDo(() => run(p, [['loat', 'chay']], 'Render all episodes')))}">▶ Render all episodes</button>
+    <button class="btn pri" ${notReady ? `title="${notReady} episode(s) not rendered yet"` : ''} onclick="${on(tryDo(() => run(p, notReady ? [['loat', 'chay'], ['loat', 'ghep']] : [['loat', 'ghep']], notReady ? 'Render missing episodes + assemble YouTube video' : 'Assemble YouTube video')))}">🎬 Assemble YouTube video</button></div>
+    <div class="tabs">${[['tap', 'Episodes'], ['youtube', 'YouTube package'], ['anhbia', 'Thumbnails'], ['yaml', 'Series config']].map(([k, t]) => `<a href="#/l/${encodeURIComponent(p)}/${k}" class="${LTAB === k ? 'on' : ''}">${t}</a>`).join('')}</div><div id="tab"></div>`;
+  const T = $('#tab');
+  if (LTAB === 'tap') T.innerHTML = `<table><tr><th style="width:48px">#</th><th>Episode</th><th style="width:260px">Progress</th><th>Duration</th><th>Next</th><th></th></tr>
+    ${m.tap.map((t, i) => { const rr = runningFor(t.p); const rest = t.buoc ? restCmds(t) : []; return `<tr class="click" onclick="${on(ev => { if (!ev.target.closest('button')) location.hash = '#/v/' + encodeURIComponent(t.p) })}">
+      <td><span class="badge">${i + 1}</span></td><td><b>${e(t.tieu_de_tap)}</b><div class="sub" style="font-size:12px">${e(t.p.split('/').pop())} · ${t.so_canh || 0} scenes${(t.canh_bao || []).length ? ` · <span style="color:var(--warn)">⚠ ${t.canh_bao.length}</span>` : ''}${t.loi ? ` · <span style="color:var(--bad)">${e(t.loi)}</span>` : ''}</div></td>
+      <td>${pipe(t)}</td><td>${fmtT(t.thoi_luong)}</td><td>${rr ? '<span class="spin"></span> running' : t.tiep && t.tiep !== 'xuat' ? NEXT[t.tiep] : '<span class="badge ok">✓ Ready to assemble</span>'}</td>
+      <td>${rest.length ? `<button class="btn sm" onclick="${on(tryDo(() => run(t.p, rest, 'Continue ' + t.p.split('/').pop())))}">▶ Continue</button>` : ''}</td></tr>` }).join('')}</table>
+    <div class="hint" style="margin-top:12px">Tip: end each episode with a hook into the next so the long video flows. When assembling, the studio adds an intro card, “PART n” cards, an outro card and continuous background music.</div>`;
+  if (LTAB === 'youtube') {
+    T.innerHTML = yt ? `<video class="player" controls preload="metadata" poster="${BIA(yt.p, yt.luc)}" src="${F(yt.p)}?v=${yt.luc}"></video><div class="row" style="margin:10px 0"><span class="badge">${yt.mb} MB</span><span class="sub">Upload this file to YouTube Studio · paste the Description + Chapters · upload the .srt subtitles · set the thumbnail</span></div>
+      <h2>Publishing package</h2>${filesHtml(m.files.filter(f => f !== yt))}` : `<div class="empty">Not assembled yet. ${notReady ? `${notReady} episode(s) not rendered yet — ` : ''}click <b>🎬 Assemble YouTube video</b>.</div>`;
+  }
+  if (LTAB === 'yaml') yamlEditor(T, p, m.yaml, true);
+  if (LTAB === 'anhbia') T.innerHTML = anhBiaHtml(m.anh_bia, p);
+}
+
+// ------------------------------------------------------------ library, jobs, guide
+async function vLib() {
+  const L = await api('/api/thu-vien'); const groups = {};
+  L.forEach(v => (groups[v.thu_muc] ||= []).push(v));
+  app.innerHTML = `<h1>Video library</h1><div class="sub">${L.length} mp4 files in the project (build/ and downloaded assets are skipped).</div>
+    ${Object.entries(groups).map(([g, vs]) => `<h2>${e(g)}</h2><div class="grid">${vs.map(v => `<div class="card" style="cursor:pointer" onclick="${on(() => player(v))}"><div class="thumb"><img loading="lazy" src="${BIA(v.p, v.luc)}" onerror="this.remove()"><div class="tr"><span class="badge">${v.mb} MB</span></div></div>
+      <div class="body"><h3 style="font-size:13.5px;word-break:break-all">${e(v.ten)}</h3><div class="meta">${ago(v.luc)}</div></div></div>`).join('')}</div>`).join('')}`;
+}
+function player(v) { modal(`<div class="row"><h3>${e(v.ten)}</h3><span class="sp"></span><a class="btn sm" href="${F(v.p)}" download>⬇ Download</a><button class="btn sm ghost" onclick="${on(closeModal)}">✕</button></div><video class="player" style="margin-top:12px" controls autoplay src="${F(v.p)}"></video>`, true) }
+function lightbox(src) { modal(`<img src="${src}" style="width:100%;border-radius:10px;display:block" onclick="${on(closeModal)}">`, true) }
+let JOBSEL = null, JLOG = [], JT;
+async function vJobs(sel) {
+  const L = await api('/api/viec'); JOBSEL = sel || L[0]?.id; clearTimeout(JT);
+  const ic = { cho: '⏳', chay: '<span class="spin"></span>', xong: '✅', loi: '❌', huy: '■' };
+  app.innerHTML = `<div class="row"><h1>Jobs</h1><span class="sp"></span><button class="btn ghost" onclick="${on(tryDo(() => post('/api/xoa-viec-cu', {}).then(() => vJobs())))}">🧹 Clear finished jobs</button>
+    ${'Notification' in window && Notification.permission === 'default' ? `<button class="btn" onclick="${on(() => Notification.requestPermission().then(() => vJobs(JOBSEL)))}">🔔 Notify when done</button>` : ''}</div>
+    <div class="sub" style="margin-bottom:16px">Jobs run one at a time (voice synthesis and the GPU can't run in parallel).</div>
+    ${L.length ? `<div class="jobs"><div>${L.map(j => `<div class="job ${j.id === JOBSEL ? 'on' : ''}" onclick="${on(() => location.hash = '#/viec/' + j.id)}"><div class="row"><b>${ic[j.tt]} ${e(j.ten)}</b></div>
+      <div class="sub" style="font-size:12px">${e(j.cwd.replace('videos/', ''))} · ${j.bd ? fmtT((j.kt || Date.now() / 1000) - j.bd) : 'waiting'} · ${ago(j.tao)}</div>
+      ${j.tt === 'chay' || j.tt === 'cho' ? `<button class="btn sm red" style="margin-top:6px" onclick="${on(tryDo(ev => { ev.stopPropagation(); return post('/api/huy', { id: j.id }).then(() => vJobs(JOBSEL)) }))}">Cancel</button>` : ''}</div>`).join('')}</div>
+      <div><div class="log" id="log"></div></div></div>` : '<div class="empty">No jobs yet.</div>'}`;
+  if (JOBSEL) { JLOG = []; tailLog() }
+}
+const logLine = l => `<div class="${/^\$ /.test(l) ? 'c' : /⚠/.test(l) ? 'w' : /ERROR|LỖI|Error|Traceback|✗/.test(l) ? 'e' : /✓/.test(l) ? 'g' : ''}">${e(l)}</div>`;
+async function tailLog() {
+  const box = $('#log'); if (!box || !location.hash.startsWith('#/viec')) return;
+  try {
+    const j = await api(`/api/viec/${JOBSEL}?tu=${JLOG.length}`); const stick = box.scrollTop + box.clientHeight > box.scrollHeight - 30;
+    if (j.log.length) { JLOG.push(...j.log); box.insertAdjacentHTML('beforeend', j.log.map(logLine).join('')); if (stick) box.scrollTop = box.scrollHeight }
+    if (j.tt === 'chay' || j.tt === 'cho') JT = setTimeout(tailLog, 800);
+  } catch (x) { }
+}
+function vGuide() {
+  app.innerHTML = `<h1>Quick guide</h1><div class="sub">Every button in the studio runs the matching <code>xp</code> command — you can still use the command line or ask Claude alongside it.</div><h2></h2>
+  <div class="guide">
+  <div class="file"><h3>🎬 Short video (TikTok / Reels / Shorts)</h3><ol><li><b>＋ Short video</b> → name it, pick vertical 9:16 and the <code>footage</code> template (real footage)</li><li>In the <b>Scenes</b> or <b>Script YAML</b> tab: write each scene's narration + footage keywords</li><li>Click <b>▶ Run all remaining steps</b>: voice → footage → audio mix → render → export</li><li>Check the <b>Output</b> tab; if some footage doesn't fit, pick another option in the Scenes tab</li></ol></div>
+  <div class="file"><h3>📚 Long YouTube video (multi-episode)</h3><ol><li><b>＋ YouTube series</b> → number of episodes, 16:9 frame</li><li>Open each episode and write its script; end each one with a hook into the next</li><li><b>▶ Render all episodes</b> (unchanged episodes are skipped)</li><li><b>🎬 Assemble YouTube video</b> → <b>YouTube package</b> tab: video, chapters, description, subtitles, thumbnail</li></ol></div>
+  <div class="file"><h3>🧭 Status colours</h3><ol style="list-style:none;padding:0"><li><span class="badge ok">green</span> done</li><li><span class="badge warn">yellow</span> changed in an earlier step → needs a re-run</li><li><span class="badge">grey</span> not done</li><li><span class="badge" style="color:var(--blue)">blue</span> running</li></ol></div>
+  <div class="file"><h3>💡 Tips</h3><ol><li>Edit one line → <b>Save & re-read</b> re-reads only that line</li><li>If the heard-back match is below 70%, listen to it and reword the line so it is easier to read aloud</li><li>Background music and voice levels come preset in the templates</li></ol></div>
+  </div>`;
+}
+
+// ------------------------------------------------------------ create new
+async function newDlg(loai) {
+  const maus = await api('/api/mau').catch(() => ['footage']); let L = loai;
+  const draw = () => modal(`<div class="row"><h3 style="font-size:17px">Create new</h3><span class="sp"></span><button class="btn sm ghost" onclick="${on(closeModal)}">✕</button></div>
+    <div class="seg" style="margin-top:14px"><button class="${L === 'video' ? 'on' : ''}" onclick="${on(() => { L = 'video'; draw() })}">🎬 Short video</button><button class="${L === 'loat' ? 'on' : ''}" onclick="${on(() => { L = 'loat'; draw() })}">📚 YouTube series</button></div>
+    <label>Title / topic</label><input class="inp" id="n-tt" placeholder="e.g. Secrets of the deep ocean" oninput="${on(ev => $('#n-ten').value = slug(ev.target.value))}">
+    <label>Folder name</label><input class="inp" id="n-ten" placeholder="secrets-of-the-deep-ocean"><div class="hint">Lowercase letters, digits and hyphens only.</div>
+    <div class="row" style="gap:14px"><div style="flex:1"><label>Frame</label><select id="n-khung">${Object.entries(KHUNG).map(([k, t]) => `<option value="${k}" ${(L === 'loat' ? '16x9' : '9x16') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+    <div style="flex:1"><label>Visual template</label><select id="n-mau">${maus.map(x => `<option ${x === 'footage' ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+    ${L === 'loat' ? `<div style="width:90px"><label>Episodes</label><input class="inp" style="min-width:0" id="n-so" type="number" min="1" max="30" value="4"></div>` : ''}</div>
+    <div class="hint">footage = real footage found automatically (Pixabay/Pexels/NASA) · trong = 2D graphics drawn in code · threejs/blender = 3D · anh-ai = AI images you generate yourself</div>
+    <div class="row" style="margin-top:20px"><span class="sp"></span><button class="btn ghost" onclick="${on(closeModal)}">Cancel</button><button class="btn pri" onclick="${on(tryDo(async () => {
+      const r = await post('/api/moi', { loai: L, ten: $('#n-ten').value, khung: $('#n-khung').value, mau: $('#n-mau').value, so_tap: +($('#n-so')?.value || 3) });
+      if (L === 'loat' && $('#n-tt').value) { const m = await api('/api/loat?p=' + encodeURIComponent(r.p)); await post('/api/luu', { p: r.p, loat: true, text: m.yaml.replace(/^tieu_de: .*$/m, `tieu_de: "${$('#n-tt').value.replace(/"/g, '')}"`) }) }
+      closeModal(); toast('Created ' + r.p, 'ok'); location.hash = (L === 'loat' ? '#/l/' : '#/v/') + encodeURIComponent(r.p) + (L === 'loat' ? '/tap' : '/yaml') }))}">Create</button></div>`);
+  draw(); setTimeout(() => $('#n-tt')?.focus(), 30);
+}
+function modal(html, wide) { $('#ov').innerHTML = `<div class="ov" onclick="${on(ev => { if (ev.target.classList.contains('ov')) closeModal() })}"><div class="md ${wide ? 'wide' : ''}">${html}</div></div>` }
+function closeModal() { $('#ov').innerHTML = '' }
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeModal() });
+
+// ------------------------------------------------------------ routing
+// ------------------------------------------------------------ auto channels (xp channel): approve topics, pause/resume, follow private videos
+const KTT = { 'de-xuat': ['Proposed', '#8aa0c8'], 'duyet': ['Approved', '#3fbf6f'], 'dang-lam': ['In progress', '#ffc46a'], 'da-dang': ['Posted (private)', '#5fb0ff'],
+              'can-xem': ['Needs your review', '#ff9a3c'], 'loi': ['Error', '#ff5a4a'], 'bo': ['Dropped', '#666'] };
+const KDAY = { t2: 'Mon', t3: 'Tue', t4: 'Wed', t5: 'Thu', t6: 'Fri', t7: 'Sat', cn: 'Sun' };
+const KGON = () => JSON.parse(localStorage.getItem('kenh-gon') || '{}');
+window.kGon = (id, v) => { const g = KGON(); g[id] = v ?? !g[id]; localStorage.setItem('kenh-gon', JSON.stringify(g));
+  const c = document.querySelector(`[data-kenh="${CSS.escape(id)}"]`); if (c) { c.classList.toggle('gon', g[id]); c.querySelector('.kgon').textContent = g[id] ? '▸' : '▾' } };
+async function vKenh() {
+  const K = await api('/api/kenh'), G = KGON();
+  const chip = s => `<span style="display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;background:${KTT[s]?.[1] || '#555'}22;color:${KTT[s]?.[1] || '#aaa'};border:1px solid ${KTT[s]?.[1] || '#555'}66">${KTT[s]?.[0] || e(s)}</span>`;
+  const setT = (k, i, st) => tryDo(async () => { await post('/api/kenh/chu-de', { kenh: k, chi_so: i, trang_thai: st }); vKenh() });
+  app.innerHTML = `<style>.kc.gon .kbody{display:none}.kc.gon{padding-bottom:10px}.kgon{cursor:pointer;user-select:none;display:inline-block;width:22px;color:var(--mut,#999)}.kc h3{cursor:pointer}</style>
+    <div class="row"><h1>Auto channels</h1><span class="sp"></span>${K.length ? `<button class="btn sm ghost" onclick="${on(() => K.forEach(k => kGon(k.id, true)))}">▸ Collapse all</button> <button class="btn sm ghost" style="margin-left:6px" onclick="${on(() => K.forEach(k => kGon(k.id, false)))}">▾ Expand all</button>` : ''}</div>
+    <p class="mut" style="margin:-6px 0 18px">At each channel's scheduled time, the machine makes videos from <b>Approved</b> topics and uploads them to YouTube as <b>Private</b>. You review them and switch them to Public yourself. Approve AI-proposed topics here.</p>
+    ${K.length ? K.map(k => { const d = k.dem, ORD = { 'dang-lam': 0, 'de-xuat': 1, 'duyet': 2, 'can-xem': 3, 'loi': 4, 'da-dang': 5, 'bo': 6 };
+      const T = k.chu_de.map((t, i) => ({ ...t, i })).sort((a, b) => (ORD[a.trang_thai] ?? 9) - (ORD[b.trang_thai] ?? 9) || (b.du_kien ?? -1) - (a.du_kien ?? -1) || b.i - a.i);
+      return `<div class="file kc${G[k.id] ? ' gon' : ''}" data-kenh="${e(k.id)}" style="margin-bottom:18px"><div class="row"><h3 style="margin:0" title="Click to collapse / expand" onclick="kGon('${e(k.id)}')"><span class="kgon">${G[k.id] ? '▸' : '▾'}</span>${k.bat ? '🟢' : '⏸'} ${e(k.ten)}</h3>
+        <span class="mut" style="margin-left:10px">${e(k.id)} · ${e(k.dinh_dang.khung || '')} · ${e(k.dinh_dang.ngon_ngu || '')}</span><span class="sp"></span>
+        ${k.da_uy_quyen ? '<span class="mut">YouTube ✓</span>' : `<span style="color:#ff9a3c">YouTube not authorised — run <code>xp channel auth ${e(k.id)}</code></span>`}
+        <button class="btn sm ghost" style="margin-left:10px" onclick="${on(tryDo(async () => { await post('/api/kenh/bat', { kenh: k.id, bat: !k.bat }); vKenh() }))}">${k.bat ? '⏸ Pause' : '▶ Resume'}</button>
+        <a class="btn sm" style="margin-left:8px" href="#/kenh/${encodeURIComponent(k.id)}">⚙ Video style settings</a></div>
+        <div class="mut" style="margin:8px 0 0">⏰ Schedule: <b>${e(k.lich?.gio || '01:00')}</b> · ${(k.lich?.ngay || []).length === 7 ? 'every day' : e((k.lich?.ngay || []).map(d => KDAY[d] || d.toUpperCase()).join(', '))} · ${k.lich?.video_moi_dem ?? 1} video(s)/run · next run: <b>${k.lan_toi ? new Date(k.lan_toi).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : (k.bat ? 'not scheduled' : 'paused')}</b> <a href="#/kenh/${encodeURIComponent(k.id)}" style="margin-left:6px">change time</a></div>
+        <div class="row" style="gap:14px;margin:10px 0">${['de-xuat', 'duyet', 'dang-lam', 'da-dang', 'can-xem', 'loi'].map(s => `${chip(s)} <b>${d[s] || 0}</b>`).join('&nbsp;&nbsp;')}</div>
+        <div class="kbody">
+        ${d['de-xuat'] ? `<div style="margin:6px 0 10px"><b>${d['de-xuat']} topic(s) awaiting approval</b></div>` : ''}
+        <div class="tw"><table class="kt"><colgroup><col style="width:320px"><col style="width:170px"><col style="width:230px"><col style="width:84px"><col style="width:140px"><col style="width:190px"></colgroup><tr><th>Topic</th><th>Market</th><th>AI score</th><th>Expected</th><th>Status</th><th></th></tr>
+        ${T.length ? T.map(t => { const m = t.thi_truong || {}, few = t.thi_truong && (m.so_video || 0) < 5, dk = t.du_kien, col = dk == null ? '#666' : dk >= 7 ? '#3fbf6f' : dk >= 5 ? '#ffc46a' : '#ff7a5a';
+          const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? Math.round(v / 1e3) + 'K' : (v || 0);
+          return `<tr><td><b>${e(t.tieu_de)}</b>${t.tieu_de_vi ? `<div style="color:#9fb6d8;font-size:13px;margin-top:2px">🇻🇳 ${e(t.tieu_de_vi)}</div>` : ''}
+            ${t.goc ? `<div class="mut" style="font-size:12px;margin-top:3px">${e(t.goc)}${t.goc_vi ? ` · <i>${e(t.goc_vi)}</i>` : ''}</div>` : ''}${t.ghi_chu ? `<div style="color:#ff9a3c">${e(t.ghi_chu)}</div>` : ''}</td>
+          <td style="font-size:12px">${!t.thi_truong ? '<span class="mut">not scored</span>' : few ? `<span class="mut">little data (${m.so_video || 0} videos)</span>` :
+            `<b>${m.diem}/10</b><div class="mut">median ${fmtV(m.trung_vi_view)} views · ${m.trung_vi_ty_le}× subs</div>${(m.top || [])[0] ? `<a class="mut" target="_blank" href="${e(m.top[0].url)}" title="${e(m.top[0].tieu_de)}">↗ top video: ${fmtV(m.top[0].view)}</a>` : ''}`}</td>
+          <td style="font-size:12px">${t.diem_ai != null ? `<b>${t.diem_ai}/10</b><div class="mut">${e(t.ly_do_ai || '')}</div>` : '<span class="mut">—</span>'}</td>
+          <td><span style="display:inline-block;min-width:44px;text-align:center;padding:4px 8px;border-radius:8px;font-weight:800;background:${col}22;color:${col};border:1px solid ${col}66">${dk ?? '—'}</span></td>
+          <td>${chip(t.trang_thai)}</td><td>
+          ${t.trang_thai === 'de-xuat' ? `<button class="btn sm" onclick="${on(setT(k.id, t.i, 'duyet'))}">✓ Approve</button> <button class="btn sm ghost" onclick="${on(setT(k.id, t.i, 'bo'))}">✗ Drop</button>` : ''}
+          ${t.trang_thai === 'bo' ? `<button class="btn sm ghost" onclick="${on(setT(k.id, t.i, 'de-xuat'))}">↺ Reconsider</button>` : ''}
+          ${t.youtube?.url ? `<a class="btn sm" target="_blank" href="${e(t.youtube.url)}">▶ Watch on YouTube</a>` : ''}
+          ${t.video && t.trang_thai !== 'de-xuat' && t.trang_thai !== 'duyet' ? ` <a class="btn sm ghost" href="#/v/${encodeURIComponent(t.video)}">Open</a>` : ''}</td></tr>` }).join('') : '<tr><td colspan="6" class="mut">No topics yet — the weekly job will propose some, or add one manually below.</td></tr>'}</table></div>
+        <div class="row" style="margin-top:10px"><input id="add-${e(k.id)}" placeholder="Add topic: Title | angle (optional)" style="flex:1">
+          <button class="btn sm" onclick="${on(tryDo(async () => { const v = $('#add-' + k.id).value.trim(); if (!v) return; await post('/api/kenh/chu-de', { kenh: k.id, them: v }); toast('Added and approved', 'ok'); vKenh() }))}">＋ Add</button></div>
+        ${k.nhat_ky.length ? `<details style="margin-top:10px"><summary class="mut">Recent log</summary>${k.nhat_ky.slice().reverse().map(n => `<div class="mut" style="font-size:12px">${e(n.t)} · ${e(n.su_kien)} ${e(n.chu_de || '')} ${n.youtube ? `<a target="_blank" href="${e(n.youtube)}">${e(n.youtube)}</a>` : ''} ${e(n.ghi_chu || '')}</div>`).join('')}</details>` : ''}
+      </div></div>` }).join('') : '<div class="empty">No channels yet — run <code>xp channel new &lt;id&gt; --name "…" --like videos/&lt;sample video&gt;</code></div>'}`;
+}
+
+// ------------------------------------------------------------ per-channel video style settings (form → kenh.yaml → `xp channel brief` → AI job)
+// ------------------------------------------------------------ style picker with preview images (horizontal carousel)
+const PK = {
+  kieu: { src: id => `/ref/previews/kieu/${id}.webp`, d: {
+    'footage': 'Good for: history, science, nature, news', 'parallax-25d': 'Layered still images with depth motion', 'sketch': 'Step-by-step explanations, hand-drawn',
+    'stick-figure': 'Everyday storytelling, light humour', 'flat-2d': 'Science, tech, explaining concepts', 'vox-collage': 'News, analysis, newspaper look',
+    'kinetic-type': 'Text is the star, fast pace', '3b1b': 'Maths, data, abstract concepts', 'keynote-ui': 'Products, tech, big numbers',
+    'finance-charts': 'Economics, stocks, data over time', 'painterly': 'Literature, philosophy, emotion — 35 painting styles', 'puppet': 'Animated character narrator',
+    'threejs': 'Moving 3D models, architecture, space', 'triet-ly': 'Quotes, philosophy, motivation', 'tuyen-ngon': 'Manifesto, discipline, bold red text',
+    'blender': 'Photoreal 3D, epic scenes', 'anh-ai': 'AI images from prompts, free-form illustration' } },
+  sub: { src: id => `/ref/previews/chu/subtitle-${id}.webp`, d: {
+    'box': ['Dark box', 'Current word in yellow — easiest to read (default)'], 'karaoke-pop': ['Karaoke pop', 'Thick outline, current word pops — TikTok, energetic'],
+    'highlight': ['Highlight', 'Accent pill jumps word by word — Shorts, motivation'], 'word-burst': ['Word burst', '1–3 big words burst in — fast openers'],
+    'typewriter': ['Typewriter', 'Typed letter by letter, blinking cursor — mystery, tech'], 'blur-in': ['Blur-in', 'Each word fades in from blur — documentary, space, calm'],
+    'underline': ['Underline', 'White text, coloured underline follows the voice — explainers, history'] } },
+  title: { src: id => `/ref/previews/chu/title-${id}.webp`, d: {
+    'word-rise': ['Word rise', 'Words rise in one by one (default)'], 'spring': ['Spring', 'Letters bounce in — fun, youthful'], 'mask-reveal': ['Mask reveal', 'Slides up from behind a mask + accent bar — documentary chapters'],
+    'decode': ['Decode', 'Random characters resolve into the title — tech, mystery'], 'shine': ['Shine sweep', 'A streak of light sweeps over the text — premium, space'],
+    'typewriter': ['Typewriter', 'Typed text with a cursor — quotes, timestamps'], 'tracking': ['Tracking', 'Wide blurry letters tighten to sharp — cinematic openers'],
+    'stamp': ['Stamp', 'Slams down, shakes, accent frame — shocking numbers, endings'] } },
+  bia: { src: id => `/ref/previews/anh-bia/${id}.webp`, d: {
+    'classic': ['Classic', 'Cut-out subject + big text on an accent box (default)'], 'poster': ['Documentary poster', 'Character + large text, black and gold tone'],
+    'gold-title': ['Gold title', 'AI painting + 3-tier gold title'], 'big-number': ['Big number', 'One huge number that sparks curiosity'],
+    'versus': ['Versus', 'Split screen: then ↔ now / A vs B'], 'red-circle': ['Red circle', 'Red ring + "look here" arrow — maps, hidden details'],
+    'breaking-news': ['Breaking news', 'Newspaper page / news ticker — events, war'], 'mystery': ['Mystery', 'Dark background, spotlight + giant "?" mark'],
+    'minimal': ['Minimal', 'Flat background, one subject, 2–3 words — readable on a phone'], 'parchment': ['Parchment', 'Parchment paper, ink text, wax seal with a year — ancient, medieval'],
+    'cinematic': ['Cinematic', 'Black bars, film colour grade, wide-tracked title — premium documentary'] } },
+};
+// items: [[id, label]] or [id]; kind: key in PK; multi: multi-select; blank: label of the "default" card (value '')
+function pickHTML(p, items, kind, cur, { multi = false, blank = '' } = {}) {
+  const K = PK[kind], sel = multi ? (cur || []).map(String) : [String(cur ?? '')];
+  const card = (v, name, desc, img) => `<button type="button" class="pkc${sel.includes(String(v)) ? ' sel' : ''}${K.doc ? ' doc' : ''}" data-v="${e(v)}" title="${e(desc)}">
+      <div class="pki">${img ? `<img loading="lazy" src="${img}" alt="">` : '<span>⚙</span>'}</div><b>${e(name)}</b><small>${e(desc)}</small><i class="pkok">✓</i></button>`;
+  const cards = (blank && !multi ? [card('', blank, 'No forced style — follow the template / sample video', '')] : []).concat(items.map(x => {
+    const [v, lab] = Array.isArray(x) ? x : [x, x], d = K.d[v];
+    const [name, desc] = Array.isArray(d) ? d : [lab, d || ''];
+    return card(v, name + (Array.isArray(d) || name === v ? '' : ''), desc, K.src(v));
+  }));
+  const hidden = multi ? items.map(x => { const v = Array.isArray(x) ? x[0] : x; return `<input type="checkbox" hidden data-m="${p}" value="${e(v)}" ${sel.includes(String(v)) ? 'checked' : ''}>` }).join('')
+                       : `<input type="hidden" data-p="${p}" value="${e(cur ?? '')}">`;
+  return `<div class="pk" data-pk="${p}" data-multi="${multi ? 1 : ''}"><button type="button" class="pkn l" aria-label="Previous">‹</button><div class="pks">${cards.join('')}</div><button type="button" class="pkn r" aria-label="Next">›</button></div>
+    <div class="pkcur mut"></div>${hidden}`;
+}
+function pickWire(root = document) {
+  root.querySelectorAll('.pk').forEach(pk => {
+    const strip = pk.querySelector('.pks'), p = pk.dataset.pk, multi = !!pk.dataset.multi;
+    const cur = () => { const names = [...strip.querySelectorAll('.pkc.sel b')].map(b => b.textContent);
+      pk.nextElementSibling.innerHTML = names.length ? `Selected: <b>${e(names.join(', '))}</b>` : (multi ? 'Nothing selected' : '') };
+    const navs = () => { pk.querySelector('.l').disabled = strip.scrollLeft < 4; pk.querySelector('.r').disabled = strip.scrollLeft + strip.clientWidth > strip.scrollWidth - 4 };
+    pk.querySelector('.l').onclick = () => strip.scrollBy({ left: -strip.clientWidth * .8, behavior: 'smooth' });
+    pk.querySelector('.r').onclick = () => strip.scrollBy({ left: strip.clientWidth * .8, behavior: 'smooth' });
+    strip.addEventListener('scroll', navs, { passive: true });
+    strip.querySelectorAll('.pkc').forEach(c => c.onclick = () => {
+      const v = c.dataset.v;
+      if (multi) { c.classList.toggle('sel'); const cb = document.querySelector(`[data-m="${p}"][value="${CSS.escape(v)}"]`); if (cb) cb.checked = c.classList.contains('sel') }
+      else { strip.querySelectorAll('.pkc').forEach(x => x.classList.toggle('sel', x === c)); document.querySelector(`[data-p="${p}"]`).value = v }
+      cur();
+    });
+    const first = strip.querySelector('.pkc.sel'); if (first) strip.scrollLeft = Math.max(0, first.offsetLeft - strip.offsetLeft - 24);
+    cur(); requestAnimationFrame(navs);
+  });
+}
+
+async function vKenhCfg(id) {
+  const { ho_so: P, lua_chon: O } = await api('/api/kenh/cau-hinh?kenh=' + encodeURIComponent(id));
+  const get = p => p.split('.').reduce((o, k) => o == null ? undefined : o[k], P);
+  const opt = (arr, v) => arr.map(x => { const [val, lab] = Array.isArray(x) ? x : [x, x]; return `<option value="${e(val)}" ${String(v) === String(val) ? 'selected' : ''}>${e(lab)}</option>` }).join('');
+  const F = [];   // [path, type] to collect when saving
+  const row = (lab, html, help = '') => `<div class="cfg-row"><label>${lab}</label><div>${html}${help ? `<div class="mut" style="font-size:12px;margin-top:3px">${help}</div>` : ''}</div></div>`;
+  const sel = (p, arr, lab, help, blank) => (F.push([p, 'sel']), row(lab, `<select data-p="${p}">${blank ? `<option value="">${e(blank)}</option>` : ''}${opt(arr, get(p) ?? '')}</select>`, help));
+  const txt = (p, lab, help, ph = '') => (F.push([p, 'txt']), row(lab, `<input data-p="${p}" value="${e(get(p) ?? '')}" placeholder="${e(ph)}">`, help));
+  const area = (p, lab, help, ph = '', rows = 3) => (F.push([p, 'txt']), row(lab, `<textarea data-p="${p}" rows="${rows}" placeholder="${e(ph)}">${e(get(p) ?? '')}</textarea>`, help));
+  const lines = (p, lab, help) => (F.push([p, 'lines']), row(lab, `<textarea data-p="${p}" rows="5">${e((get(p) || []).join('\n'))}</textarea>`, help || 'One item per line.'));
+  const csv = (p, lab, help) => (F.push([p, 'csv']), row(lab, `<input data-p="${p}" value="${e((get(p) || []).join(', '))}">`, help || 'Comma-separated.'));
+  const num = (p, lab, min, max, step, help) => (F.push([p, 'num']), row(lab, `<input type="number" data-p="${p}" min="${min}" max="${max}" step="${step}" value="${e(get(p) ?? '')}" style="width:120px">`, help));
+  const chk = (p, lab, help, def = true) => (F.push([p, 'chk']), row(lab, `<input type="checkbox" data-p="${p}" ${(get(p) ?? def) ? 'checked' : ''}>`, help));
+  const multi = (p, arr, lab, help) => (F.push([p, 'multi']), row(lab, arr.map(x => { const [val, l] = Array.isArray(x) ? x : [x, x]; return `<label class="ck"><input type="checkbox" data-m="${p}" value="${e(val)}" ${(get(p) || []).map(String).includes(String(val)) ? 'checked' : ''}> ${e(l)}</label>` }).join(''), help));
+  const box = (t, inner) => `<div class="file" style="margin-bottom:16px"><h3 style="margin-top:0">${t}</h3>${inner}</div>`;
+  const pick = (p, arr, lab, kind, o = {}) => (F.push([p, o.multi ? 'multi' : 'txt']),
+    `<div class="cfg-row full"><label>${lab}</label><div>${pickHTML(p, arr, kind, get(p), o)}${o.help ? `<div class="mut" style="font-size:12px;margin-top:3px">${o.help}</div>` : ''}</div></div>`);
+  const dd = get('dinh_dang.do_dai_giay') || [];
+  app.innerHTML = `<style>.cfg-row{display:grid;grid-template-columns:230px 1fr;gap:12px;align-items:start;padding:7px 0;border-bottom:1px solid var(--line)}.cfg-row label{font-weight:600;padding-top:6px}
+    .cfg-row input:not([type=checkbox]):not([type=color]),.cfg-row select,.cfg-row textarea{width:100%;max-width:640px;background:#0f1218;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit}.cfg-row select option{background:#0f1218;color:var(--text)}.cfg-row input[type=number]{width:130px}.ck{display:inline-flex;gap:6px;align-items:center;margin:0 14px 6px 0;font-weight:500!important;padding:0!important}
+    .cfg-row>div{min-width:0}.cfg-row.full{grid-template-columns:1fr;gap:8px}.cfg-row.full>label{padding-top:2px}
+    .pk{position:relative;width:100%}
+    .pks{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;scroll-behavior:smooth;padding:4px 2px 12px;scrollbar-width:thin;scrollbar-color:#3a4150 transparent}
+    .pks::-webkit-scrollbar{height:6px}.pks::-webkit-scrollbar-track{background:transparent}.pks::-webkit-scrollbar-thumb{background:#3a4150;border-radius:99px}
+    .pkc{scroll-snap-align:start;flex:0 0 220px;position:relative;text-align:left;background:#171b24;border:2px solid #262c3a;border-radius:12px;padding:0 0 10px;cursor:pointer;color:inherit;overflow:hidden;transition:border-color .15s,transform .15s,box-shadow .15s}
+    .pkc.doc{flex-basis:150px}.pkc:hover{transform:translateY(-2px);border-color:#4a5263}.pkc.sel{border-color:#ffc46a;box-shadow:0 0 0 3px #ffc46a2e}
+    .pki{aspect-ratio:16/9;background:#0b0d12;display:flex;align-items:center;justify-content:center;overflow:hidden}.pkc.doc .pki{aspect-ratio:9/14}
+    .pki img{width:100%;height:100%;object-fit:cover;display:block}.pkc.doc .pki img{object-position:center 70%}.pki span{font-size:30px;opacity:.45}
+    .pkc b{display:block;padding:9px 11px 2px;font-size:13.5px}.pkc small{display:block;padding:0 11px;font-size:11.5px;line-height:1.4;color:#8a92a6}
+    .pkok{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;background:#ffc46a;color:#111;font-style:normal;font-weight:900;display:none;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px #0008}.pkc.sel .pkok{display:flex}
+    .pkn{position:absolute;z-index:3;top:calc(50% - 24px);width:38px;height:38px;border-radius:50%;border:1px solid #3a4150;background:#11141bee;color:#fff;font-size:22px;line-height:1;cursor:pointer;box-shadow:0 4px 14px #000a;transition:opacity .15s}
+    .pkn.l{left:-10px}.pkn.r{right:-10px}.pkn:hover{background:#1d2230}.pkn:disabled{opacity:0;pointer-events:none}
+    .pk::after{content:'';position:absolute;right:0;top:0;bottom:12px;width:40px;pointer-events:none;background:linear-gradient(90deg,transparent,#141821);border-radius:0 12px 12px 0}
+    .pkcur{font-size:12.5px;margin-top:2px}
+    @media (max-width:760px){.cfg-row{grid-template-columns:1fr;gap:4px}.cfg-row label{padding-top:0}.pkn{display:none}.pkc{flex-basis:170px}.pkc.doc{flex-basis:124px}}</style>
+    <div class="crumb"><a href="#/kenh">Auto channels</a> / ${e(P.ten || id)}</div>
+    <div class="row"><h1>⚙ Video style settings · ${e(P.ten || id)}</h1><span class="sp"></span><button class="btn" id="cfg-save">💾 Save settings</button></div>
+    <p class="mut" style="margin:-4px 0 16px">Once saved, this channel's next automatic run will make videos with exactly these settings. Settings here take priority over the sample video. Videos are always uploaded as Private.</p>
+    ${box('1 · Channel', txt('ten', 'Channel name (in Studio)') + chk('bat', 'Enabled', 'Untick to pause automatic video making') + area('mo_ta', 'Niche & channel description', 'The AI uses this to choose topics and keep the channel voice.', '', 4))}
+    ${box('2 · Format', sel('dinh_dang.khung', O.khung, 'Aspect ratio') + sel('dinh_dang.mau', O.mau, 'Render template', 'footage = real photos/footage · triet-ly = 3D philosophy · tuyen-ngon · threejs · trong (hand-drawn canvas) · blender · anh-ai')
+       + sel('dinh_dang.ngon_ngu', O.ngon_ngu, 'Narration language') + row('Length (seconds)', `<input type="number" id="dd0" value="${e(dd[0] ?? '')}" style="width:110px"> to <input type="number" id="dd1" value="${e(dd[1] ?? '')}" style="width:110px">`, 'E.g. Shorts 60–90 · YouTube 600–900')
+       + num('dinh_dang.so_canh', 'Suggested scene count', 0, 60, 1, 'Leave empty = the AI decides') + sel('video_mau', O.video_mau, 'Sample video to imitate', 'Script structure, film.html, editing rhythm', '(no sample video)'))}
+    ${box('3 · Visuals', pick('phong_cach.kieu', O.kieu_hinh, 'Main visual style', 'kieu', { blank: 'Follow template' }) + multi('phong_cach.lop_phu', O.lop_phu, 'Effect overlays')
+       + row('Accent colour', `<input type="color" data-p="phong_cach.accent" value="${e(get('phong_cach.accent') || '#ffc46a')}" style="width:80px;height:34px">`) + pick('phong_cach.subtitle_style', O.subtitle_style, 'Subtitle style', 'sub', { blank: 'Default' })
+       + pick('phong_cach.title_style', O.title_style, 'Scene title style', 'title', { blank: 'Default' }) + sel('phong_cach.uu_tien', [['can-bang', 'Balance video and images'], ['video', 'Prefer video footage'], ['anh', 'Prefer archival images']], 'Asset preference')
+       + chk('phong_cach.hud_bien', 'Deep-sea HUD readouts + 3D cutaway', 'Live depth / pressure / temperature / light readouts; the AI inserts bien3d 3D scenes (a submersible passing through the water layers). For ocean channels.', false)
+       + txt('phong_cach.huashu', 'Drawing style (huashu)', 'Only when the visual style is drawn: e.g. sketch-whiteboard, kurzgesagt, ghibli-watercolor…', '') + multi('nguon_them', O.nguon_them, 'Extra image sources allowed (standing permission)', 'Beyond Pixabay/Pexels/NASA/Poly Haven/ambientCG/Kenney. Only enable if you approve it for the whole channel.'))}
+    ${box('4 · Voice', sel('giong.mau', O.giong, 'Voice sample') + num('giong.toc_do', 'Speaking speed', .7, 1.5, .01, '1.0 = normal · 1.1–1.25 = fast, good for Shorts') + num('giong.am_luong', 'Voice volume', .2, 1, .05, 'Default 0.55'))}
+    ${box('5 · Background music', sel('nhac.file', O.nhac, 'Track', 'Add music: xp music add <file> --name …', '(no music)') + num('nhac.am_luong', 'Music volume', 0, 1, .05, 'Default 0.6') + chk('nhac.tu_ha', 'Duck the music under narration'))}
+    ${box('6 · Sound effects', num('sfx.muc', 'Effects level', 0, 1.5, .05, '0 = off · 1 = default') + sel('sfx.am_nen', O.am_nen, 'Ambience') + chk('sfx.tu_dong', 'Automatic effects (whoosh / boom / riser / tick)', 'Untick for documentaries: voice + ambience + hand-placed real sounds only (am:)', true) + num('sfx.nen_muc', 'Ambience volume', 0, .5, .02, 'Default 0.1') + multi('sfx.kenney', O.kenney, 'Preferred Kenney packs', 'The AI picks Kenney sounds from these packs for accent scenes (xp sfx search)')
+       + txt('sfx.thay.bum', 'Replace the "boom" sound (number/title hits)', 'A Kenney name or keyword, e.g. impactPunch_heavy_000 — empty = synthesised', '') + txt('sfx.thay.tich', 'Replace the "tick" sound (clip cuts)', '', 'click') + txt('sfx.thay.dang', 'Replace the "riser" sound (before a reveal)', '', ''))}
+    ${box('7 · Content & script', area('noi_dung.giong_van', 'Tone of voice', 'E.g. warm, curious, like a documentary narrator; short sentences; no sensationalism', '', 2)
+       + area('noi_dung.mo_dau', 'Opening style (0–5 seconds)', 'E.g. mystery question / shocking number / paradox', '', 2) + area('noi_dung.cau_truc', 'Body structure', 'E.g. 4 layers what → why → so what → hook into the next idea; a chapter every 60–120 s', '', 3)
+       + area('noi_dung.ket', 'Ending & call to action', 'E.g. a comment-bait question + a teaser for the next video', '', 2) + txt('noi_dung.doi_tuong', 'Target audience', '', 'E.g. adults 25–55 who enjoy science')
+       + sel('noi_dung.mat_do', [['day', 'Dense, deep (lots of information)'], ['vua', 'Moderate'], ['nhe', 'Light, relaxed']], 'Information density') + area('noi_dung.tranh', 'What to AVOID', 'E.g. unverified rumours, current politics, medical advice', '', 2)
+       + lines('quy_tac', 'Channel rules (the AI must follow)'))}
+    ${box('8 · Thumbnails', chk('anh_bia.bat', 'Make thumbnails') + pick('anh_bia.kieu', O.anh_bia, 'Thumbnail style', 'bia', { multi: true, help: 'Pick 2–3 different styles to A/B test on YouTube (Test & Compare). Click again to deselect.' }) + area('anh_bia.ghi_chu', 'Thumbnail notes', '', 'E.g. text ≤ 4 words, deep blue + gold', 2))}
+    ${box('9 · YouTube upload', row('Visibility', '<b>Private</b> <span class="mut">(fixed — you switch to Public yourself after reviewing)</span>') + sel('dang.danh_muc', O.danh_muc, 'Category') + csv('dang.tag_chung', 'Common tags (all videos)')
+       + csv('dang.hashtag', 'Common hashtags', 'No # needed') + chk('dang.phu_de', 'Upload subtitles (original + English)') + area('dang.caption', 'Caption / short description template', 'The AI writes following this template', '', 2))}
+    ${box('10 · Schedule', row('Start time', `<input type="time" id="lich-gio" value="${e(get('lich.gio') || '01:00')}" style="width:130px">`, 'The machine checks once an hour, so a video starts within about 1 hour after this time. Several channels at the same time run one after another (shared GPU).')
+       + multi('lich.ngay', [['t2', 'Mon'], ['t3', 'Tue'], ['t4', 'Wed'], ['t5', 'Thu'], ['t6', 'Fri'], ['t7', 'Sat'], ['cn', 'Sun']], 'Run on', 'Untick all = every day')
+       + num('lich.video_moi_dem', 'Videos per run', 0, 3, 1, '0 = make none (same as paused)'))}
+    <div class="row"><span class="sp"></span><button class="btn" id="cfg-save2">💾 Save settings</button></div>`;
+  const save = tryDo(async () => {
+    const out = {}; const set = (p, v) => { const ks = p.split('.'); let o = out; ks.slice(0, -1).forEach(k => o = o[k] ??= {}); o[ks[ks.length - 1]] = v };
+    for (const [p, t] of F) {
+      if (t === 'multi') { set(p, [...document.querySelectorAll(`[data-m="${p}"]:checked`)].map(x => x.value)); continue }
+      const el = document.querySelector(`[data-p="${p}"]`); if (!el) continue;
+      if (t === 'chk') set(p, el.checked); else if (t === 'num') { if (el.value !== '') set(p, Number(el.value)) }
+      else if (t === 'lines') set(p, el.value.split('\n').map(s => s.trim()).filter(Boolean)); else if (t === 'csv') set(p, el.value.split(',').map(s => s.trim()).filter(Boolean));
+      else if (el.value !== '' || !p.startsWith('sfx.thay')) set(p, el.value);
+    }
+    set('phong_cach.accent', document.querySelector('[data-p="phong_cach.accent"]').value);
+    set('lich.gio', $('#lich-gio').value || '01:00'); if (!(out.lich?.ngay || []).length) set('lich.ngay', ['t2', 't3', 't4', 't5', 't6', 't7', 'cn']);
+    const a0 = $('#dd0').value, a1 = $('#dd1').value; if (a0 && a1) set('dinh_dang.do_dai_giay', [Number(a0), Number(a1)]);
+    if (out.dang) out.dang.danh_muc = Number(out.dang.danh_muc);
+    await post('/api/kenh/cau-hinh', { kenh: id, ho_so: out }); toast('Saved — applies from the next run', 'ok'); vKenhCfg(id);
+  });
+  $('#cfg-save').onclick = save; $('#cfg-save2').onclick = save; pickWire(app);
+}
+
+async function route(soft) {
+  document.body.classList.remove('nav-open');                                     // mobile: close the menu drawer on navigation
+  const h = decodeURIComponent(location.hash.slice(2)); const [a, ...rest] = h.split('/');
+  const tb = document.getElementById('tb-r'); if (tb) tb.textContent = ({ '': 'Projects', 'thu-vien': 'Library', kenh: 'Auto channels', viec: 'Jobs', 'huong-dan': 'Guide', v: 'Video', l: 'Series' })[a] || '';
+  document.querySelectorAll('#nav a').forEach(x => x.classList.toggle('on', x.dataset.r === (a === 'v' || a === 'l' ? '' : a)));
+  const y = scrollY;
+  try {
+    if (a === 'v') { const last = rest[rest.length - 1]; const isTab = ['canh', 'thu', 'xuat', 'anhbia', 'yaml', 'kiemtra'].includes(last); TAB = isTab ? last : 'canh'; await vVideo((isTab ? rest.slice(0, -1) : rest).join('/')) }
+    else if (a === 'l') { const last = rest[rest.length - 1]; const isTab = ['tap', 'youtube', 'anhbia', 'yaml'].includes(last); LTAB = isTab ? last : 'tap'; await vLoat((isTab ? rest.slice(0, -1) : rest).join('/')) }
+    else if (a === 'thu-vien') await vLib();
+    else if (a === 'kenh') await (rest[0] ? vKenhCfg(rest[0]) : vKenh());
+    else if (a === 'viec') await vJobs(rest[0]);
+    else if (a === 'huong-dan') vGuide();
+    else await vHome();
+    DIRTY = false; if (soft) scrollTo(0, y); else scrollTo(0, 0);
+  } catch (x) { app.innerHTML = `<div class="empty">Could not open: ${e(x.message)}<br><br><a class="btn" href="#/">Back to projects</a></div>` }
+}
+window.addEventListener('hashchange', () => { if (DIRTY && !confirm('You have unsaved changes. Leave this page?')) return; route() });
+window.addEventListener('beforeunload', ev => { if (DIRTY) { ev.preventDefault(); ev.returnValue = '' } });
+route(); poll();
+</script>
+</body></html>

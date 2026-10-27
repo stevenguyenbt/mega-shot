@@ -1,0 +1,33 @@
+X:1
+T:No luc 6 · Khong ai thay ban luc 5 gio sang
+M:4/4
+L:1/8
+Q:1/4=90
+K:Am
+V:PNO inst=piano role=melody gain=0.9
+!mark:mo-dau! !p! A,2 E2 A2 c2 | F,2 C2 F2 A2 |
+!mark:phong-toi! C2 G2 c2 e2 | [M:3/4] G,2 D2 G2 |
+[M:4/4] !mark:aristotle! !mp! A,2 E2 A2 c2 | e4 d2 c2 | F,2 C2 F2 A2 | c4 B2 A2 | G,2 D2 G2 B2 |
+!mark:kipchoge! A,2 E2 A2 c2 | e2 a2 g2 e2 | F,2 C2 F2 A2 | c2 f2 e2 c2 | G,2 D2 G2 B2 |
+!mark:trai-tap! !mf! C2 G2 c2 e2 | g4 e2 c2 | F,2 C2 F2 A2 | [M:3/4] G,2 D2 G2 |
+[M:4/4] !mark:lap-lai! !hit! !f! A,2 E2 A2 c2 | e2 a2 e2 c2 | [M:3/4] F,2 C2 F2 |
+[M:4/4] !mark:vi-sao! !mf! C2 G2 c2 e2 | G,2 D2 G2 B2 | A,2 E2 A2 c2 | F,2 C2 F2 A2 | !rise(! C2 G2 c2 e2 | [M:2/4] G2 B2 !rise)! |
+[M:4/4] !mark:ket! !f! A,2 E2 A2 c2 | e4 c4 | !p! !fermata! [A,EAc]8 |]
+V:STR inst=strings gain=0.55
+!pp! [A,,E,A,]8 | [F,,C,F,]8 |
+[C,G,C]8 | [M:3/4] [G,,D,G,]6 |
+[M:4/4] !p! [A,,E,A,]8 | [A,,E,A,]8 | [F,,C,F,]8 | [F,,C,F,]8 | [G,,D,G,]8 |
+[A,,E,A,]8 | [A,,E,A,]8 | [F,,C,F,]8 | [F,,C,F,]8 | [G,,D,G,]8 |
+!mp! [C,G,C]8 | [C,G,C]8 | [F,,C,F,]8 | [M:3/4] [G,,D,G,]6 |
+[M:4/4] !f! [A,,E,A,]8 | [A,,E,A,]8 | [M:3/4] [F,,C,F,]6 |
+[M:4/4] !mp! [C,G,C]8 | [G,,D,G,]8 | [A,,E,A,]8 | [F,,C,F,]8 | !crescendo(! [C,G,C]8 | [M:2/4] [G,,D,G,]4 !crescendo)! |
+[M:4/4] !f! [A,,E,A,]8 | [A,,E,A,]8 | !p! [A,,E,A,]8 |]
+V:HRP inst=harp gain=0.45
+z8 | z8 |
+z8 | [M:3/4] z6 |
+[M:4/4] z8 | z8 | z8 | z8 | z8 |
+a2 e2 c2 e2 | a2 e2 c2 e2 | f2 c2 A2 c2 | f2 c2 A2 c2 | g2 d2 B2 d2 |
+c'2 g2 e2 g2 | c'2 g2 e2 g2 | a2 f2 c2 f2 | [M:3/4] g2 d2 B2 |
+[M:4/4] a2 e2 c2 e2 | a2 e2 c2 e2 | [M:3/4] a2 f2 c2 |
+[M:4/4] z8 | z8 | z8 | z8 | z8 | [M:2/4] z4 |
+[M:4/4] a2 e2 c2 e2 | a4 e4 | z8 |]

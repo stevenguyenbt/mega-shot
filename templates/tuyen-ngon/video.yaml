@@ -1,0 +1,28 @@
+# "Manifesto" template: paper background ↔ spot-lit black, cut-out people printed photocopy-style, red 3D block words slammed in on the spoken word.
+#   xp narrate → xp assets → xp preview → xp mix → xp render → xp export → xp check      (references/manifesto.md)
+# kind: chu-3d (3D words, optionally over a faded image) | cat-dan (cut-out person + ink/red words) | khung (1–2 tilted framed prints + 3D words) | the (question card)
+# nen: toi (dark) | giay (paper) · title: "KEYWORD" (| = line 2) · chu_tren / chu_duoi: small lines · do: true (cat-dan uses red 3D words) · vi_tri: trai|giua|phai · chapter: 1
+# The word in `title` should also appear in the subtitle so it lands exactly when it is spoken.
+name: __TEN__
+format: __KHUNG__
+language: en
+voice: { sample: documentarian, volume: 0.55, speed: 1.0 }
+# music: { file: <path>.mp3, volume: 0.6, duck: true }
+sfx: { level: 1.0, ambience: khong }
+style: { kind: tuyen-ngon, chapter_label: "MANIFESTO", subtitle_style: box }
+
+scenes:
+  - id: opening
+    kind: chu-3d
+    chapter: 1
+    title: IT IS TIME
+    narration: It is time to change.
+  - id: person
+    kind: cat-dan
+    search: { query: "man sitting sofa", type: image }
+    title: YOU
+    narration: The second line is about you.
+  - id: question
+    kind: the
+    title: "WHAT IS|YOUR|**QUESTION?**"
+    narration: What is your question?

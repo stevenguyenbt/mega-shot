@@ -1,0 +1,81 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#111">
+<canvas id="c"></canvas>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script>
+<script>
+// Clip gallery for the skeletal characters (nhanvat.js + nhanvat_clip.js). Served by xp (/ms/core/nhanvat_demo.html):
+//   ?grid=1 (default)  all clips, one cell each, looping      ?clip=<name>  one cell, big      ?cell=<w> size
+// window.render(t) draws frame t (seconds) — used to export GIF / MP4 per clip.
+const q = new URLSearchParams(location.search), one = q.get('clip');
+const MINH = { da: '#e6c19c', toc: { kieu: 'ngan', mau: '#1e1714' }, mu: { kieu: 'luoi-trai', mau: '#3e6b4a' }, ao: { mau: '#8a5a33', kieu: 'khoac' }, quan: '#3c5c88', giay: '#3a2a1f', balo: '#4b5a3a' };
+const BA = { da: '#e2bf9c', toc: { kieu: 'bac-bui' }, ao: { mau: '#6b4f7a', kieu: 'ao' }, quan: '#3b3533', giay: '#2a2320', cao: .9 };
+const words = (txt, t0) => { let t = t0; return txt.split(' ').map(s => { const d = .17 + s.length * .035, r = [s, t, t + d]; t += d + (/[,.!?]$/.test(s) ? .25 : .05); return r; }); };
+const CW = +(q.get('cell') || (one ? 600 : 320)), CH = Math.round(CW * 1.25), S = CW / 760;
+const solo = (clip, extra = {}) => ({ clip, per: (MS.nv.CLIPS[clip].len || 3) + (MS.nv.CLIPS[clip].loop ? 0 : 1.8), mk: () => [MS.nv.actor({ id: 'a', ve: MINH, x: 0, y: 0, huong: 1, goc: '3-4', hd: [{ t: 0, clip: 'dung' }, { t: .5, clip }], ...extra })] });
+const CELLS = [];
+for (const c of ['dung', 'nhin-quanh', 'cam-den', 'chi', 'vay', 'gio-tay', 'gat-dau', 'lac-dau', 'khoanh-tay', 'chong-nanh', 'suy-nghi', 'run-ray', 'giat-minh', 'nhay', 'cui', 'cui-nhat', 'keo', 'day', 'om', 'tho-doc', 'quy'])
+  CELLS.push({ ...solo(c), label: c });
+CELLS.push({ label: 'ngoi-xuong → dung-day', per: 4.6, mk: () => [MS.nv.actor({ id: 'a', ve: BA, x: 0, y: 0, huong: 1, goc: '3-4', hd: [{ t: 0, clip: 'dung' }, { t: .4, clip: 'ngoi-xuong' }, { t: 2.4, clip: 'dung-day' }] })] });
+CELLS.push({ label: 'nga → do-day', per: 5, mk: () => [MS.nv.actor({ id: 'a', ve: BA, x: 0, y: 0, huong: 1, goc: '3-4', hd: [{ t: 0, clip: 'dung' }, { t: .3, clip: 'nga' }, { t: 2.4, clip: 'do-day' }] })] });
+CELLS.push({ label: 'nam → ngoi-day', per: 3.6, mk: () => [MS.nv.actor({ id: 'a', ve: BA, x: 40, y: 0, huong: 1, goc: '3-4', hd: [{ t: 0, clip: 'nam' }, { t: 1, clip: 'ngoi-day' }] })] });
+for (const [k, v] of [['di', 'vua'], ['di-cham', 'cham'], ['chay', 'chay'], ['chay-hoang', 'chay']])
+  CELLS.push({ label: k + ' (root motion)', per: 3.6, mk: () => [MS.nv.actor({ id: 'a', ve: MINH, x: -230, x1: 230, di_tu: .3, di_den: 3.1, kieu_di: k, hd: [{ t: 0, clip: 'dung' }] })] });
+CELLS.push({ label: 'climb (slope)', per: 4, mk: () => [MS.nv.actor({ id: 'a', ve: MINH, x: -200, y: 120, x1: 200, y1: -120, di_tu: .2, di_den: 3.6, kieu_di: 'leo', hd: [{ t: 0, clip: 'dung' }] })], doc: [-200, 120, 200, -120] });
+CELLS.push({ label: 'walk + hold lamp (layer)', per: 3.6, mk: () => [MS.nv.actor({ id: 'a', ve: MINH, x: -230, x1: 230, di_tu: .3, di_den: 3.1, hd: [{ t: 0, clip: 'cam-den' }], den: false })] });
+CELLS.push({ label: 'turn around', per: 4.4, mk: () => [MS.nv.actor({ id: 'a', ve: MINH, x: 0, y: 0, huong: 1, goc: '3-4', hd: [{ t: 0, clip: 'dung' }, { t: 1, clip: 'dung', huong: -1 }, { t: 2.6, clip: 'chi', huong: 1 }] })] });
+CELLS.push({ label: 'angles: front/3-4/side/back', per: 4.8, mk: () => [MS.nv.actor({ id: 'a', ve: MINH, x: 0, y: 0, huong: 1, goc: 'thang', hd: [{ t: 0, clip: 'dung' }, { t: 1.2, clip: 'dung', goc: '3-4' }, { t: 2.4, clip: 'dung', goc: 'ngang' }, { t: 3.6, clip: 'dung', goc: 'lung' }] })] });
+CELLS.push({ label: 'talk + gestures + lip-sync', per: 4.4, mk: () => [MS.nv.actor({ id: 'a', ve: MINH, x: 0, y: 0, huong: 1, goc: '3-4', words: words('Bà ơi, dậy đi bà! Nước lên rồi, mình phải đi ngay!', .3), hd: [{ t: 0, clip: 'dung' }] })] });
+CELLS.push({ label: 'dialogue (look + nod)', per: 4.4, mk: () => { const w1 = words('Đường ra lộ ngập rồi con!', .2), w2 = words('Vậy mình lên đồi hả bà?', 2.3);
+  return [MS.nv.actor({ id: 'ba', ve: BA, x: 170, y: 0, huong: -1, goc: '3-4', words: w1, nghe: w2, nhin: 'm', bc: 'so' }), MS.nv.actor({ id: 'm', ve: MINH, x: -150, y: 0, huong: 1, goc: '3-4', words: w2, nghe: w1, nhin: 'ba' })]; } });
+CELLS.push({ label: 'hold hands (two-way IK)', per: 3.4, mk: () => [MS.nv.actor({ id: 'm', ve: MINH, x: -150, huong: 1, hd: [{ t: 0, clip: 'dung' }, { t: .5, clip: 'nam-tay', toi: { ai: 'ba' } }] }),
+  MS.nv.actor({ id: 'ba', ve: BA, x: 120, huong: -1, hd: [{ t: 0, clip: 'dung' }, { t: .6, clip: 'nam-tay', toi: { ai: 'm' } }] })] });
+CELLS.push({ label: 'pull (IK to hand)', per: 3.4, mk: () => [MS.nv.actor({ id: 'm', ve: MINH, x: -120, huong: 1, hd: [{ t: 0, clip: 'keo', toi: { ai: 'ba', tay: 'ca-hai' } }] }),
+  MS.nv.actor({ id: 'ba', ve: BA, x: 60, huong: -1, hd: [{ t: 0, clip: 'nga', xong: true }, { t: .1, clip: 'nga', tu: 1.3, toi: { ai: 'm' } }] })] });
+CELLS.push({ label: 'shake-shoulder (IK)', per: 3, mk: () => [MS.nv.actor({ id: 'm', ve: MINH, x: -120, huong: 1, hd: [{ t: 0, clip: 'lay', toi: { ai: 'ba', bo_phan: 'vai', tay: 'ca-hai' } }] }),
+  MS.nv.actor({ id: 'ba', ve: BA, x: 110, huong: -1, hd: [{ t: 0, clip: 'ngoi' }], bc: 'so' })] });
+CELLS.push({ label: 'support-walk (IK + walk)', per: 3.8, mk: () => [MS.nv.actor({ id: 'ba', ve: BA, x: -210, x1: 150, di_tu: .3, di_den: 3.5, kieu_di: 'di-cham', bc: 'met' }),
+  MS.nv.actor({ id: 'm', ve: MINH, x: -130, x1: 230, di_tu: .3, di_den: 3.5, kieu_di: 'di-cham', lop: 1, hd: [{ t: 0, clip: 'diu', toi: { ai: 'ba', bo_phan: 'vai', tay: 'xa' } }], nhin: 'ba' })] });
+// ?retarget=1 → rows = clips, columns = body types / looks: the SAME clip data drives every character (no re-animation)
+if (q.get('retarget')) {
+  CELLS.length = 0;
+  const KIDS = { ...MINH, dang: 'tre-em', mu: { kieu: 'none' }, toc: { kieu: 'ngan', mau: '#2a1d17' }, ao: { mau: '#d0533b', kieu: 'ao' }, quan: '#2f4f7a', balo: null };
+  const BEO = { ...MINH, dang: 'thap-dam', mu: { kieu: 'none' }, toc: { kieu: 'bui', mau: '#3a2a20' }, ao: { mau: '#3f6f8f', kieu: 'khoac' }, rau: 'ram', balo: null };
+  const CHIBI = { ...BA, dang: 'chibi', toc: { kieu: 'dai', mau: '#3b2418' }, ao: { mau: '#e08aa0', kieu: 'ao' }, quan: '#5a4a6a', cao: 1 };
+  const QUE = { kieu: 'que', mau: '#1d1d1f', da: '#ffffff' };
+  const TYPES = [['adult', MINH], ['child', KIDS], ['stocky', BEO], ['chibi', CHIBI], ['stick', QUE]];
+  for (const clip of (q.get('clips') || 'di,chay,chi,vay,nga,ngoi-xuong,giat-minh,nhay').split(','))
+    for (const [nm, ve] of TYPES) {
+      const loco = MS.nv.CLIPS[clip].loco, per = loco ? 3.4 : (MS.nv.CLIPS[clip].len || 3) + (MS.nv.CLIPS[clip].loop ? 0 : 1.6);
+      CELLS.push({ label: `${clip} · ${nm}`, per, mk: () => [MS.nv.actor(loco ? { id: 'a', ve, x: -200, x1: 200, di_tu: .3, di_den: 3.0, kieu_di: clip }
+        : { id: 'a', ve, x: 0, y: 0, huong: 1, goc: '3-4', hd: [{ t: 0, clip: 'dung' }, { t: .4, clip }] })] });
+    }
+}
+// ?mau=<json ve> (URL-encoded) or ?mau=shin → the given character in a row of poses / angles (to compare against a reference picture)
+const MAU = { shin: { dang: 'chibi', rong: 2.1, ti_le: { chan: .5, tay: .62, than: .62, dau: 2.05, vai: .95 }, dau_rong: 1.18, ma: 1.05, da: '#f6d3b5', toc: { kieu: 'ngan', mau: '#1b1b1d', tran: .74 },
+  may: 'day', kinh: 'den', ao: { mau: '#2f3238', kieu: 'vest-mo' }, xam: '#2f5d8a', day_chuyen: '#d9b13b', quan: '#2a2c31', giay: '#1b1b1d', cam: 'hoa-hong' } };
+if (q.get('mau')) { CELLS.length = 0; const ve = MAU[q.get('mau')] || JSON.parse(q.get('mau'));
+  for (const [lb, extra] of [['3/4', { goc: '3-4', hd: [{ t: 0, clip: 'dung' }], bc: 'ngac' }], ['front', { goc: 'thang', hd: [{ t: 0, clip: 'dung' }], bc: 'ngac' }], ['ngang', { goc: 'ngang', hd: [{ t: 0, clip: 'dung' }] }],
+    ['walk', { kieu_di: 'di', x: -200, x1: 200, di_tu: .2, di_den: 3 }], ['point', { goc: '3-4', hd: [{ t: 0, clip: 'dung' }, { t: .3, clip: 'chi' }] }], ['wave', { goc: '3-4', hd: [{ t: 0, clip: 'vay' }] }],
+    ['jump', { goc: '3-4', hd: [{ t: 0, clip: 'dung' }, { t: .3, clip: 'nhay' }] }], ['talk', { goc: '3-4', words: words('Chào chị đẹp, em tặng chị bông hồng nè!', .2) }]])
+    CELLS.push({ label: 'sample · ' + lb, per: 3.4, mk: () => [MS.nv.actor({ id: 'a', ve, x: 0, y: 0, huong: 1, ...extra })] }); }
+const list = one ? CELLS.filter(c => c.label.split(' ')[0] === one || c.clip === one) : CELLS;
+const cols = one ? 1 : +(q.get('cols') || (q.get('retarget') ? 5 : 6)), rows = Math.ceil(list.length / cols);
+const cv = document.getElementById('c'); cv.width = cols * CW; cv.height = rows * CH; const x = cv.getContext('2d');
+const built = list.map(c => ({ ...c, A: c.mk() }));
+window.render = async t => {
+  x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = '#1b2230'; x.fillRect(0, 0, cv.width, cv.height);
+  built.forEach((c, i) => {
+    const X = (i % cols) * CW, Y = Math.floor(i / cols) * CH, lt = t % c.per;
+    x.save(); x.beginPath(); x.rect(X, Y, CW, CH); x.clip();
+    const g = x.createLinearGradient(0, Y, 0, Y + CH); g.addColorStop(0, '#9fc3d6'); g.addColorStop(1, '#dfe9e2'); x.fillStyle = g; x.fillRect(X, Y, CW, CH);
+    x.translate(X + CW / 2, Y + CH * .86); x.scale(S, S);
+    x.fillStyle = '#6f8f5a'; x.beginPath(); if (c.doc) { const [a, b, cc, d] = c.doc; x.moveTo(-600, b); x.lineTo(a, b); x.lineTo(cc, d); x.lineTo(600, d); } else { x.moveTo(-600, 0); x.lineTo(600, 0); } x.lineTo(600, 600); x.lineTo(-600, 600); x.fill();
+    MS.nv.scene(x, c.A, lt);
+    x.restore();
+    x.fillStyle = 'rgba(10,14,20,.75)'; x.fillRect(X, Y, CW, 34 * CW / 320); x.fillStyle = '#ffe08a'; x.font = `700 ${Math.round(19 * CW / 320)}px sans-serif`; x.textBaseline = 'middle'; x.fillText(c.label, X + 10, Y + 17 * CW / 320);
+    x.strokeStyle = '#000'; x.lineWidth = 2; x.strokeRect(X, Y, CW, CH);
+  });
+  return 1;
+};
+window.DUR = Math.max(...built.map(c => c.per)); window.CELLS = built.map(c => [c.label, c.per]); window.READY = true;
+render(+(location.hash.slice(1)) || 1.2);
+</script>

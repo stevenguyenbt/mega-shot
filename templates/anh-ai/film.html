@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/stills.js"></script><script src="/ms/core/film.js"></script>
+<script>
+// AI image template: Ken Burns + "morph" transition + anchor labels placed by ratio coordinates on the image (`nhan` key in video.yaml).
+const { clamp, eio } = MS.u, IM = {};
+const shot = (img, c, u) => x => MS.still(x, img, c, { u, zoom: [1.02, 1.09], focus: [.5, .34] });
+MS.film({
+  topShade: true,
+  prepare: async TL => { for (const s of TL.scenes) IM[s.id] = await MS.img(`build/anh/${s.data.anh.file}.png`); },
+  scenes: { '*': { draw(x, c) {
+    const u = clamp(c.lt / (c.D + 1.3)); let r = null; const cur = x2 => { r = shot(IM[c.id], c, u)(x2); };
+    if (c.i > 0 && c.q < 1) MS.morph(x, shot(IM[c.prev.id], { ...c, D: c.prev.t1 - c.prev.t0 }, 1), cur, eio(c.q), c); else cur(x);
+    (c.data.nhan || []).forEach((n, k) => { const [ax, ay] = MS.at(r, ...n.diem); MS.tag(x, n.chu, ax, ay, (c.vt - c.vdur * (n.luc ?? .3)) / .5, { slot: k, warn: n.canh_bao }); });
+  } } },
+});
+</script>

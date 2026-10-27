@@ -1,0 +1,42 @@
+[project]
+name = "mega-shot"
+dynamic = ["version"]
+description = "AI video studio: one video.yaml → narrated, subtitled, scored, quality-checked video (Claude Code skill + xp CLI)"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+# Core runtime. `xp` / `xp.cmd` run tools/xp.py through `uv run --with …` with exactly these packages, so a plain
+# `uv` install is enough; this file is for editors, linters and `uv sync` users.
+dependencies = [
+  "playwright==1.63.0",   # keep in sync with xp, xp.cmd and tools/huashu.py
+  "pyyaml>=6",
+  "ruamel.yaml>=0.18",
+  "pillow>=10",
+  "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+# Installed on demand by the commands that need them (uv run --with …); listed here for reference.
+asr = ["faster-whisper>=1.0"]                                   # narration listen-back + word timestamps
+cutout = ["rembg[cpu]>=2.0"]                                    # background removal (BiRefNet)
+clip = ["yt-dlp[default]>=2025.1", "opencv-python-headless>=4.9"] # xp clip
+youtube = ["google-api-python-client>=2.0", "google-auth-oauthlib>=1.0"]  # xp channel
+dev = ["ruff>=0.6"]
+
+[tool.setuptools]
+packages = []
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
+
+[tool.ruff]
+line-length = 200
+target-version = "py310"
+extend-exclude = ["engine/node_modules", "vendor", "references"]
+
+[tool.ruff.lint]
+# The code base uses a dense one-line style; CI only fails on real errors (syntax, undefined names, bad comparisons).
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.uv]
+package = false

@@ -1,0 +1,89 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#000">
+<style>
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-Black.ttf);font-weight:900}
+@font-face{font-family:BVP;src:url(/root/.mega-shot/fonts/BeVietnamPro-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:OSW;src:url("/root/.mega-shot/fonts/Oswald[wght].ttf");font-weight:200 700}
+</style>
+<canvas id="c"></canvas>
+<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/textfx.js"></script><script src="/ms/core/fx.js"></script><script src="/ms/core/film.js"></script>
+<script type="importmap">{"imports":{"three":"/ms/node_modules/three/build/three.module.js","three/addons/":"/ms/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+// Template "y-khoa" (medical explainer: "Đây là điều xảy ra bên trong cơ thể bạn khi…"): every scene is a stylised glossy 3D set
+// from engine/backends/three/medical3d.js, with a running BODY CLOCK on top (the counter that keeps people watching to the end),
+// organ labels pinned to the 3D (projected every frame), an optional caffeine/level meter, a source chip and a closing stamp.
+// Scene keys:
+//   yk: <set id> | { kieu: <set id>, …options }      sets: ly-ca-phe · co-the · da-day · mach-mau · nao · thu-the · tim · gan · phan-tu
+//   dong_ho: [from, to]   body-clock seconds shown during this scene (counts from → to, log-eased for big jumps); one number = fixed
+//   chu: "HOOK TITLE" (under the clock) · chu_giu: seconds before the title fades
+//   muc: { nhan: "CAFFEINE TRONG MÁU", tu: 100, den: 50 }   level bar (percent) under the clock
+//   nguon: "EFSA 2015"   small source chip above the subtitles (every number on screen should carry one)
+//   chot: "STAMP LINE" + chot_luc: "<spoken word>" (gold stamp) · hoi: "Bạn uống mấy ly mỗi ngày?" (comment-bait card at the end)
+// phong_cach: { nhan: "KHÁM PHÁ CƠ THỂ" (corner brand), subtitle_style: giua, phu_de_y: .74, dong_ho: true }
+import { clinic } from '/ms/backends/three/medical3d.js';
+let S3 = null, WORDS = [];
+const { clamp } = MS.u, eo3 = u => 1 - Math.pow(1 - clamp(u), 3), sm = u => { u = clamp(u); return u * u * (3 - 2 * u); };
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
+function hitW(c, text, fb) { const t0 = c.t - c.lt, w0 = norm(String(text).split(/\s+/)[0]); if (w0) for (const w of WORDS) if (w[1] >= t0 - .05 && w[1] < t0 + c.D && norm(w[0]) === w0) return w[1] - t0; return fb; }
+const GOLD = '#ffd36a', CYAN = '#7fe3ff';
+const rr = (x, X, Y, w, h, r) => { x.beginPath(); x.roundRect(X, Y, w, h, r); };
+// body-clock text: 0 GIÂY · 35 MILI GIÂY (< 0,095 s) · 45 GIÂY · 10 PHÚT · 1 GIỜ · 1 GIỜ 30 PHÚT · 6 GIỜ · 2 NGÀY
+function clockText(sec) { sec = Math.max(0, sec); if (sec > .0005 && sec < .095) return [String(Math.round(sec * 1000)), 'MILI GIÂY']; if (sec > .04 && sec < .95) return [sec.toFixed(1).replace('.', ','), 'GIÂY']; if (sec < 59.5) return [Math.round(sec), 'GIÂY'];
+  const m = Math.round(sec / 60); if (m < 60) return [m, 'PHÚT']; const h = Math.floor(m / 60), mm = m - h * 60;
+  if (h >= 48) return [String(Math.round(m / 1440)), 'NGÀY']; if (mm === 0 || h >= 3) return [String(Math.round(m / 60)), 'GIỜ']; return [`${h} GIỜ ${mm}`, 'PHÚT']; }
+function clockVal(c, dh) { if (!Array.isArray(dh)) return +dh; const [a, b] = dh, u = sm(clamp((c.lt - .25) / Math.max(.5, (c.D - .25) * .7)));
+  return a > 0 && b / a > 8 ? Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * u) : a + (b - a) * u; }
+function clock(x, c, dh) {
+  const W = c.W, cx = W / 2, cy = c.H * .095, R = W * .052, val = clockVal(c, dh), [num, unit] = clockText(val), first = c.i === 0, a = first ? sm(c.lt / .3) : 1;
+  x.save(); x.globalAlpha = a; x.font = `900 ${Math.round(W * .082)}px BVP`; const t1 = String(num); const w1 = x.measureText(t1).width; x.font = `700 ${Math.round(W * .042)}px OSW`; const w2 = x.measureText(unit).width;
+  const bw = R * 2 + 28 + w1 + 18 + w2 + 44, bx = cx - bw / 2, bh = R * 2 + 26, by = cy - bh / 2;
+  rr(x, bx, by, bw, bh, bh / 2); x.fillStyle = 'rgba(4,14,30,.72)'; x.fill(); x.lineWidth = 3; x.strokeStyle = 'rgba(127,227,255,.55)'; x.stroke();
+  // stopwatch dial: ring + sweeping hand (one turn per minute of body time, fast when the clock jumps)
+  const ox = bx + 22 + R, oy = cy; x.lineWidth = 5; x.strokeStyle = CYAN; x.beginPath(); x.arc(ox, oy, R * .82, 0, Math.PI * 2); x.stroke();
+  x.fillStyle = CYAN; x.fillRect(ox - 6, oy - R * 1.12, 12, R * .22);
+  const ang = (val % 60) / 60 * Math.PI * 2 - Math.PI / 2; x.lineWidth = 6; x.lineCap = 'round'; x.strokeStyle = GOLD; x.beginPath(); x.moveTo(ox, oy); x.lineTo(ox + Math.cos(ang) * R * .62, oy + Math.sin(ang) * R * .62); x.stroke();
+  x.fillStyle = GOLD; x.beginPath(); x.arc(ox, oy, 7, 0, Math.PI * 2); x.fill();
+  x.textBaseline = 'middle'; x.textAlign = 'left'; x.font = `900 ${Math.round(W * .082)}px BVP`; x.fillStyle = '#fff'; x.shadowColor = 'rgba(0,0,0,.5)'; x.shadowBlur = 12; x.fillText(t1, ox + R + 26, cy + 4);
+  x.font = `700 ${Math.round(W * .042)}px OSW`; x.fillStyle = GOLD; x.fillText(unit, ox + R + 26 + w1 + 18, cy + 6);
+  x.restore();
+}
+function meter(x, c, m) { const W = c.W, y = c.H * .19, w = W * .56, X = W / 2 - w / 2, u = sm(clamp((c.lt - .25) / Math.max(.5, (c.D - .25) * .7))), v = m.tu + (m.den - m.tu) * u;   // same easing as the clock
+  x.save(); x.globalAlpha = sm(c.lt / .4); x.font = `700 ${Math.round(W * .03)}px OSW`; x.textAlign = 'left'; x.textBaseline = 'bottom'; x.fillStyle = 'rgba(255,255,255,.85)'; x.fillText(m.nhan || 'CAFFEINE TRONG MÁU', X, y - 8);
+  x.textAlign = 'right'; x.fillStyle = GOLD; x.fillText(`~${Math.round(v)}%`, X + w, y - 8);
+  rr(x, X, y, w, 18, 9); x.fillStyle = 'rgba(255,255,255,.14)'; x.fill(); const g = x.createLinearGradient(X, 0, X + w, 0); g.addColorStop(0, '#ffb43a'); g.addColorStop(1, '#ffe08a');
+  rr(x, X, y, Math.max(18, w * v / 100), 18, 9); x.fillStyle = g; x.fill(); x.restore(); }
+// organ label: glowing dot on the organ, short leader line, pill with the name
+function label(x, c, L, k) {
+  const W = c.W, size = Math.round(W * .036); x.save(); x.globalAlpha = L.a; x.font = `800 ${size}px BVP`;
+  const tw = x.measureText(L.text).width, side = L.x > W * .62 ? -1 : 1, lx = L.x + side * 70, ly = Math.max(c.H * .25, Math.min(c.H * .6, L.y - 60)), bx = side > 0 ? lx : lx - tw - 36;
+  x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 3; x.beginPath(); x.moveTo(L.x, L.y); x.lineTo(lx, ly); x.stroke();
+  x.fillStyle = '#fff'; x.shadowColor = CYAN; x.shadowBlur = 18; x.beginPath(); x.arc(L.x, L.y, 9, 0, Math.PI * 2); x.fill(); x.shadowBlur = 0;
+  const pad = 18, h = size + 22, cxb = Math.max(20, Math.min(W - tw - 2 * pad - 20, bx)); rr(x, cxb, ly - h / 2, tw + 2 * pad, h, h / 2); x.fillStyle = 'rgba(255,255,255,.94)'; x.fill();
+  x.fillStyle = '#0b2140'; x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillText(L.text, cxb + pad, ly + 2); x.restore(); }
+function chip(x, c, s) { const W = c.W, size = Math.round(W * .024); x.save(); x.globalAlpha = .9 * sm((c.lt - .6) / .4); x.font = `600 ${size}px OSW`;
+  const t = 'NGUỒN: ' + String(s).toUpperCase(), w = x.measureText(t).width + 28, X = W / 2 - w / 2, Y = c.H * .138;
+  rr(x, X, Y, w, size + 16, 8); x.fillStyle = 'rgba(4,14,30,.6)'; x.fill(); x.fillStyle = 'rgba(200,236,255,.9)'; x.textBaseline = 'middle'; x.fillText(t, X + 14, Y + (size + 16) / 2 + 1); x.restore(); }
+function ask(x, c, q, t0) { const tt = c.lt - t0; if (tt < 0) return; const W = c.W, size = Math.round(W * .055), p = MS.u.clamp(tt / .45), sc = .8 + .2 * (1 - Math.pow(1 - p, 3)) + .03 * Math.sin(Math.min(tt, 1) * 14) * (1 - p);
+  x.save(); x.font = `900 ${size}px BVP`; const lines = String(q).split('|'), w = Math.max(...lines.map(l => x.measureText(l).width)) + 70, h = lines.length * size * 1.25 + 50, cy = c.H * .42;
+  x.translate(W / 2, cy); x.scale(sc, sc); x.globalAlpha = p; rr(x, -w / 2, -h / 2, w, h, 34); x.fillStyle = '#ffd36a'; x.fill();
+  x.beginPath(); x.moveTo(-30, h / 2 - 2); x.lineTo(10, h / 2 + 36); x.lineTo(30, h / 2 - 2); x.fill();
+  x.fillStyle = '#10131c'; x.textAlign = 'center'; x.textBaseline = 'middle'; lines.forEach((l, i) => x.fillText(l, 0, -h / 2 + 25 + size * .62 + i * size * 1.25)); x.restore(); }
+function corner(x, c) { const n = (MS.TL.style || {}).nhan; if (!n) return; const y = c.H * .022; x.save(); x.font = `600 ${Math.round(c.W * .026)}px OSW`; x.textBaseline = 'top'; x.textAlign = 'center';
+  x.fillStyle = 'rgba(200,236,255,.75)'; x.fillText('●  ' + n + '  ●', c.W / 2, y); x.restore(); }   // brand line above the clock
+MS.film({
+  gpu: () => S3 ? S3.gpu() : 'canvas2d', vignette: .3, grain: false,
+  prepare: async TL => { S3 = clinic({ ...MS.FORMATS[TL.format] }); WORDS = (TL.subs || []).flatMap(s => s.w || []).map(w => [w[0], w[1], w[2]]);
+    await Promise.all(['800 40px BVP', '900 40px BVP', '600 40px OSW', '700 40px OSW'].map(f => document.fonts.load(f).catch(() => console.warn('font missing: ' + f + ' (xp setup --install fonts)')))); },
+  scenes: { '*': { async draw(x, c) { const d = c.data, k = typeof d.yk === 'string' ? { kieu: d.yk } : (d.yk || { kieu: 'co-the' });
+    const labels = S3.draw(x, c.id, k.kieu, { lt: c.lt, D: c.D, t: c.t }, k);
+    { const g = x.createLinearGradient(0, c.H * .6, 0, c.H); g.addColorStop(0, 'rgba(3,10,22,0)'); g.addColorStop(.35, 'rgba(3,10,22,.55)'); g.addColorStop(1, 'rgba(3,10,22,.75)'); x.fillStyle = g; x.fillRect(0, c.H * .6, c.W, c.H * .4); }   // subtitle scrim
+    if (c.ra) return;
+    labels.forEach((L, i) => label(x, c, L, i));
+    const st = MS.TL.style || {}; if (d.dong_ho != null && st.dong_ho !== false) clock(x, c, d.dong_ho);
+    if (d.muc) meter(x, c, d.muc); corner(x, c);
+    if (d.chu) { const fo = d.chu_giu ? 1 - clamp((c.lt - d.chu_giu) / .4) : 1; if (fo > 0) { x.save(); x.globalAlpha = fo; MS.title(x, d.chu, c.W / 2, c.H * (d.dong_ho != null ? .235 : .16), .2, c.lt, Math.round(c.W * .072), '#fff', d.title_style); x.restore(); } }
+    if (d.nguon) chip(x, c, d.nguon);
+    if (d.chot) { const t0 = d.chot_luc ? hitW(c, d.chot_luc, c.D * .35) : c.D * .35; MS.title(x, d.chot, c.W / 2, c.H * .3, t0, c.lt, Math.round(c.W * .085), GOLD, 'stamp'); }
+    if (d.hoi) ask(x, c, d.hoi, d.hoi_luc ? hitW(c, d.hoi_luc, c.D * .5) : c.D * .5);
+  } } },
+});
+</script>

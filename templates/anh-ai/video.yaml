@@ -1,0 +1,26 @@
+# AI-image template: one character image per scene (you generate them from loi_nhac_anh.md). Workflow:
+#   xp prompts → generate images → put them in anh/ → xp images → xp narrate → xp preview → xp mix → xp render → xp export → xp check
+name: __TEN__
+format: __KHUNG__
+language: en
+voice: { sample: documentarian, volume: 0.55, speed: 1.0 }
+# music: { file: <path>.mp3, volume: 0.6, duck: true }   # background music — easiest: xp music add <audio-or-video> --name bg --use
+
+characters:
+  mo_ta: "photorealistic portrait of the same person: <age, face, skin tone, eyes, hair — a fixed description>"
+  khung_hinh: "front-facing head-and-shoulders portrait, centered, eyes on the upper third line, looking at the camera"
+  anh_sang: "soft cinematic key light, subtle rim light"
+  phong_cach: "editorial photography, 85mm lens, shallow depth of field, natural skin texture"
+  nen: day-du            # day-du (image with surroundings) | xanh (green screen → xp images cuts it out)
+  tranh: "no text, no watermark, no logo, no extra people, modest clothing"
+
+scenes:
+  - id: opening
+    image: { file: "goc", description: "natural look" }
+    narration: The opening line.
+  - id: scene-2
+    transition: tu-xu-ly
+    transition_length: 1.3
+    image: { file: "02_scene-2", description: "<what changes in this scene>", boi_canh: "<setting>" }
+    labels: [{ text: "Example label", point: [.585, .34], at: .4 }]      # point: fractional coordinates on the image
+    narration: The second line.
