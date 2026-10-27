@@ -1,4 +1,4 @@
-# mega-shot — an AI video studio you drive with one YAML file
+# mega-shot — type an idea, get a finished video
 
 mega-shot turns a request like *"make a 90-second vertical video about why the sea is salty"* into a finished,
 publish-ready video: researched script → cloned narration voice → visuals in the style you pick → karaoke subtitles →
@@ -7,9 +7,10 @@ hashtags, chapters, subtitles (SRT) and thumbnails.
 
 It works two ways:
 
-- **As a Claude Code skill** (recommended): you talk to the AI, the AI writes `video.yaml` and drives the `xp` CLI.
+- **As a Claude Code skill** (recommended): just say what video you want — Claude researches, writes, builds and checks it for you
+  (behind the scenes it writes the video's script file, `video.yaml`, and runs the `xp` CLI).
   Other coding agents (Codex, Cursor, Gemini CLI, …) can use it through [`AGENTS.md`](AGENTS.md).
-- **As a plain CLI**: write `video.yaml` yourself and run `xp narrate → xp render → xp export`.
+- **As a plain CLI**: write the script file (`video.yaml`) yourself and run `xp narrate → xp render → xp export`.
 
 ![12 visual styles](references/style-gallery.jpg)
 
