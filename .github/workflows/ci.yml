@@ -23,8 +23,10 @@ jobs:
         with: { node-version: 20 }
       - name: JS syntax
         run: |
-          for f in $(find engine -name '*.js' -not -path '*/node_modules/*'); do node --check "$f" || exit 1; done
-          for f in $(find engine -name '*.mjs' -not -path '*/node_modules/*'); do node --check "$f" || exit 1; done
+          # classic scripts first; ES modules (three.js backends) are checked in module mode
+          for f in $(find engine -name '*.js' -o -name '*.mjs' | grep -v node_modules); do
+            node --check "$f" 2>/dev/null || node --input-type=module --check < "$f" || { echo "syntax error: $f"; exit 1; }
+          done
 
   render-test:
     needs: lint
