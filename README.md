@@ -29,6 +29,43 @@ It works two ways:
 | **Licences** | Every downloaded asset is logged with its licence and credited automatically. Downloads only from sources you approve. |
 | **Studio** | Local web dashboard (`xp studio`, 127.0.0.1 only): every video, one-click steps, edit lines, pick footage, play results. |
 
+## Gallery
+
+### Made with mega-shot
+
+Real frames from videos produced end-to-end with mega-shot — footage with live captions, a 3D depth HUD, code-built 3D,
+a 3D product cutaway, old paintings in 2.5D, manifesto typography, stick-figure stories and flat 2D explainers.
+
+![Frames from videos made with mega-shot](docs/media/showcase.jpg)
+
+### Animated subtitles & titles
+
+Word-timed karaoke subtitles (7 styles) and title animations (8 styles), springs and easing driven by the narration.
+Works in any language — the preview below is Vietnamese, with full diacritics.
+
+| Subtitle styles | Title styles |
+|---|---|
+| ![Subtitle styles](references/text-styles/overview-subtitles.gif) | ![Title styles](references/text-styles/overview-titles.gif) |
+
+### Thumbnails that get clicked
+
+Eleven thumbnail styles — cut-out subject, big words, versus, red circle, breaking news, poster, cinematic and more.
+
+![11 thumbnail styles](references/thumbnail-styles.jpg)
+
+### Characters, drawn in code
+
+Cartoon characters with poses, expressions and lip-sync — no image AI needed. One rig, many drawing styles, plus animal
+mascots and 3D people for history and explainer scenes.
+
+| Drawing styles · one rig | Animal friends |
+|---|---|
+| ![5 drawing styles, one rig](references/characters/styles-lineup.gif) | ![5 animal mascots](references/characters/critters-lineup.gif) |
+
+| Talking characters | 3D people |
+|---|---|
+| ![Characters built from data specs](references/characters/demo-lineup.gif) | ![3D people line-up](references/characters/people3d-lineup.jpg) |
+
 ## Requirements
 
 | | Required? | Notes |
