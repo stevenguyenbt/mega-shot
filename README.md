@@ -168,3 +168,9 @@ Full list with licences: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and
 [SECURITY.md](SECURITY.md). mega-shot is released under the [MIT licence](LICENSE). Assets, voices and music you put in
 your videos keep their own licences — mega-shot logs them, you are responsible for respecting them.
+
+## Support
+
+mega-shot is free and will stay free. If it saved you a few hours of editing and you'd like to say thanks,
+you can [buy me a coffee ☕](https://buymeacoffee.com/lestinguye9) — completely optional.
+A ⭐ on the repo, a bug report, or sharing a video you made with it helps just as much. Thank you!
