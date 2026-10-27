@@ -48,10 +48,10 @@ Tested on Windows 11. macOS and Linux work for the core pipeline (setup handles 
 
 ```bash
 # A) as a personal Claude Code skill (available in every project)
-git clone https://github.com/musknguyen/mega-shot ~/.claude/skills/mega-shot
+git clone https://github.com/stevenguyenbt/mega-shot ~/.claude/skills/mega-shot
 
 # B) or inside one project
-git clone https://github.com/musknguyen/mega-shot <project>/.claude/skills/mega-shot
+git clone https://github.com/stevenguyenbt/mega-shot <project>/.claude/skills/mega-shot
 ```
 
 Then, **from your project folder** (any empty folder works — it will hold `.mega-shot/` and `videos/`):

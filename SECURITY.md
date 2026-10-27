@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please **do not open a public issue** for security problems. Use GitHub's private vulnerability reporting
-("Security" tab → "Report a vulnerability": https://github.com/musknguyen/mega-shot/security/advisories/new).
+("Security" tab → "Report a vulnerability": https://github.com/stevenguyenbt/mega-shot/security/advisories/new).
 Include steps to reproduce and the affected version (`VERSION`). We aim to reply within 7 days.
 
 ## Design notes for users
