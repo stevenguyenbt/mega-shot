@@ -5,8 +5,8 @@ A click-worthy thumbnail = **one emotional main image** (AI image, best real fra
 ## Workflow
 
 1. `xp thumbnail new` in a video or series folder → `anh_bia.yaml` + `loi_nhac_anh_bia.md` (*AI prompts*) + `anh_bia/`.
-2. **Claude writes** `loi_nhac_anh_bia.md`: 2–3 ideas, one English prompt each (format `## N. \`name.png\` — text: …` + a code block) so Studio shows copy buttons and drop zones.
-3. **Claude picks real frames/images**: build a contact sheet (`ffmpeg … fps=8/dur,tile=4x2`) from the original `tainguyen/*.mp4` (higher resolution than build/), pick moments where the subject is large, sharp and moving → `nguon: "tap-02/tainguyen/x.mp4@19.6"`; archival stills work directly (`nguon: tap-04/tainguyen/herzl.jpg`).
+2. **The agent writes** `loi_nhac_anh_bia.md`: 2–3 ideas, one English prompt each (format `## N. \`name.png\` — text: …` + a code block) so Studio shows copy buttons and drop zones.
+3. **The agent picks real frames/images**: build a contact sheet (`ffmpeg … fps=8/dur,tile=4x2`) from the original `tainguyen/*.mp4` (higher resolution than build/), pick moments where the subject is large, sharp and moving → `nguon: "tap-02/tainguyen/x.mp4@19.6"`; archival stills work directly (`nguon: tap-04/tainguyen/herzl.jpg`).
 4. **The user generates AI images** (ChatGPT/Gemini, 16:9) → drags them into Studio's **Thumbnails** tab, or saves `anh_bia/<name>.png`.
 5. `xp thumbnail [name…]` → `out/anh_bia_<name>.jpg` (1280×720) + `out/anh_bia_xem_truoc.jpg` (YouTube home-page mock at desktop and phone sizes, with the real video duration). **Always check the preview** before delivering.
 

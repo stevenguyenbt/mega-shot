@@ -17,6 +17,8 @@ jobs:
         run: python3 tools/secret_scan.py
       - name: Ruff (errors only)
         run: uvx ruff check tools tests
+      - name: Agent Skills spec (Claude Code, Codex, Antigravity, Gemini CLI, Cursor)
+        run: uv run --no-project --with pyyaml python tests/test_skill_spec.py
       - name: Python syntax
         run: python3 -m compileall -q tools tests
       - uses: actions/setup-node@v4

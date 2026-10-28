@@ -4,8 +4,15 @@
 quality check → YouTube/TikTok publishing package. The full manual for agents is [`SKILL.md`](SKILL.md); topic guides
 are in [`references/`](references/); human docs in [`docs/`](docs/). Read SKILL.md before doing anything.
 
-`<skill>` below = the folder of this repository (e.g. `~/.claude/skills/mega-shot`). Run commands from the user's
-**project folder** (where `.mega-shot/` and `videos/` live), not from inside the skill folder.
+`<skill>` below = the folder of this repository (e.g. `~/.agents/skills/mega-shot` or `~/.claude/skills/mega-shot`).
+Run commands from the user's **project folder** (where `.mega-shot/` and `videos/` live), not from inside the skill folder.
+
+**Installing for your agent:** `<skill>/xp agents install` links this folder into the skill directories of Claude Code,
+Codex, Antigravity, Gemini CLI and Cursor; `xp agents install --scope project` does it for one project and writes a
+mega-shot block into its AGENTS.md / GEMINI.md / CLAUDE.md. Per-agent notes (sandbox, approvals): [`docs/agents.md`](docs/agents.md).
+
+**Asking the user:** when SKILL.md says "ask", ask one question per decision and wait — use your agent's question/choice
+tool if it has one, otherwise a plain numbered list in chat. Never decide installs, downloads, voices or publishing alone.
 
 ## What the agent needs
 A terminal on the user's machine (not a plain chat window):

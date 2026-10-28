@@ -3,14 +3,14 @@
 mega-shot handles narration, timing, subtitles, music, export and QA for every style. The **look** comes from one of two engines in this project:
 
 - **mega-shot templates** (`templates/…`): real footage & archival images, 2.5D stills, Three.js 3D, Blender, AI images, plain Canvas 2D.
-- **huashu-art-motion** (sibling skill `.claude/skills/huashu-art-motion`): 8 explainer grammars (sketch/whiteboard, stick-figure story, Kurzgesagt-style flat 2D, Vox collage, kinetic typography, 3Blue1Brown math, keynote UI, finance charts) and 35 painterly art styles drawn in code.
+- **huashu-art-motion** (installed as a sibling skill next to this one, or `xp setup --install huashu` → `vendor/`): 8 explainer grammars (sketch/whiteboard, stick-figure story, Kurzgesagt-style flat 2D, Vox collage, kinetic typography, 3Blue1Brown math, keynote UI, finance charts) and 35 painterly art styles drawn in code.
 
 Never pick the style silently. The style decides the template, the asset pipeline and the script's shot rhythm.
 
 ## The question (Step 0 — before research/script)
 
-1. Send `references/style-gallery.jpg` (SendUserFile) — one labelled frame per style.
-2. Ask with `AskUserQuestion` (header "Style"); multiSelect off; 4 options max per question, so ask in two steps when needed — family first, then the exact grammar/art style:
+1. Send/show the user `references/style-gallery.jpg` (share the image file) — one labelled frame per style.
+2. Ask the user (one question per decision; use your agent's question/choice tool if it has one — single choice, at most 4 options per question), so ask in two steps when needed — family first, then the exact grammar/art style:
    - **Real images** — footage + archival photos with 2.5D parallax (documentaries, history, nature, places)
    - **Drawn / animated 2D** — sketch whiteboard, stick-figure story, flat Kurzgesagt-style, kinetic text, collage, math (explainers, tutorials, opinion)
    - **3D** — Three.js stylized or Blender realistic (objects, architecture, space, mechanisms)

@@ -6,8 +6,12 @@ The project started in Vietnamese. All commands, flags and YAML keys have Englis
 (`build/thu.jpg`, `giay_phep.json`, `out/dang_bai_mxh.md`) and enum values (`tia-nang`, `thanh-ty-le`) keep their ids;
 they are explained in the docs.
 
-**Do I need Claude Code?** No. It makes things much easier (the AI researches, writes `video.yaml`, checks output),
-but `xp` is a normal CLI.
+**Do I need Claude Code?** No. Any agent that reads Agent Skills or `AGENTS.md` works — Claude Code, OpenAI Codex,
+Google Antigravity, Gemini CLI, Cursor (`xp agents install`, see [agents.md](agents.md)). An agent makes things much
+easier (it researches, writes `video.yaml`, checks output), but `xp` is also a normal CLI you can drive by hand.
+
+**Can a chat-only AI (ChatGPT / Gemini on the web) use it?** Not to render — it needs a terminal on your machine. It can
+still read SKILL.md and write a `video.yaml` that you then run with `xp`.
 
 **Do I need a GPU?** No. An NVIDIA GPU makes narration and encoding much faster. Without WebCodecs hardware support the
 renderer falls back to JPEG → x264 (~3× slower).

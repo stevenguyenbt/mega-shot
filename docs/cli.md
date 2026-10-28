@@ -8,6 +8,7 @@ Run `xp <command> --help` for every flag. Run commands from your **project folde
 | Command | What it does |
 |---|---|
 | `xp setup` | check prerequisites, fix what is safe, list **NEEDS YOUR INPUT** (`--install <ids>`, `--policy`, `--json`, `--quick`, `--no-launch`). Install ids: `ffmpeg, chromium, three, fonts, huashu, hyperframes, composer, birefnet, voicestudio` |
+| `xp agents status\|install\|init\|uninstall` | make the skill available to Claude Code, Codex, Antigravity, Gemini CLI and Cursor (`--for`, `--scope user\|project`, `--copy`, `--force`) — see [agents.md](agents.md) |
 | `xp voicestudio start\|stop\|restart\|status` | run the VoiceStudio TTS API headless (`--gui` opens the app) |
 | `xp voice add <audio-or-video> --name N --consent` | clone a narration voice (≥ 15 s of one speaker); `xp voice add --archetype documentarian` for a built-in English narrator; `xp voice list`, `xp voice check <name>` |
 | `xp music add <file> --name bg [--start s --duration s --license "…" --use]` | add background music (normalised, logged); `xp music list` |

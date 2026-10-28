@@ -2,7 +2,7 @@
 
 Motion uses physics springs and time interpolation: the same model as Remotion's `spring()` / `interpolate()` (damping, stiffness, mass). It is implemented in our own `engine/core/textfx.js`, with no Remotion code or dependency. Every style is driven by the word-level timestamps from `xp narrate`, so the highlight follows the voice exactly.
 
-**Show the user the previews before choosing.** Do it in Step 0, together with the visual style: send `references/text-styles/overview-subtitles.gif` and `overview-titles.gif`, then ask with `AskUserQuestion`. Single-style GIFs are listed below. After editing textfx.js, regenerate them with `xp text-styles` (or `--only highlight,spring`).
+**Show the user the previews before choosing.** Do it in Step 0, together with the visual style: send `references/text-styles/overview-subtitles.gif` and `overview-titles.gif`, then ask the user (use your agent's question/choice tool if it has one). Single-style GIFs are listed below. After editing textfx.js, regenerate them with `xp text-styles` (or `--only highlight,spring`).
 
 ## Use in video.yaml
 

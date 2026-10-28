@@ -2,8 +2,9 @@
 
 ## Install layout
 
-- The skill folder (this repository) lives in `~/.claude/skills/mega-shot` (all projects) or
-  `<project>/.claude/skills/mega-shot` (one project). The command is `<skill>/xp` (bash) or `<skill>\xp.cmd` (Windows).
+- The skill folder (this repository) lives wherever your agent installs skills: a user-level skills folder (all
+  projects, e.g. `~/.claude/skills/mega-shot` for Claude Code; other agents use their own skills directory) or a
+  project-level skills folder (one project). The command is `<skill>/xp` (bash) or `<skill>\xp.cmd` (Windows).
 - You run `xp` **from your own project folder**. Project data goes into `<project>/.mega-shot/` (voices, music, sound
   library, models, fonts, policy, tokens) and videos into `<project>/videos/<name>/`. The first `xp setup` in a folder
   creates `.mega-shot/` there (not allowed in your home folder; or set `MS_PROJECT=<folder>`). Later commands find the
@@ -34,8 +35,8 @@ Exit code: `0` = everything required for the footage workflow is ready; `1` = so
 1. Run `xp setup` (or `xp setup --json` to parse).
 2. If the report ends with `READY` and nothing required is listed, continue with the user's request. Mention optional
    items briefly, at most once.
-3. For each item under **NEEDS YOUR INPUT**, ask the user before acting — group them into one `AskUserQuestion` call
-   where possible:
+3. For each item under **NEEDS YOUR INPUT**, ask the user before acting — one question per decision (use your agent's
+   question/choice tool if it has one; group related items where possible):
    - **APPROVE DOWNLOAD** (`install`): say what it is, its size and licence; on "yes" run `xp setup --install <id>[,<id>…]`.
    - **DECIDE** (`decide`): the auto-download policy — explain the sources (Pixabay, Pexels, NASA, Poly Haven,
      ambientCG), the commercial-use licences and the 1 GB/video limit; on "yes" run `xp setup --policy`.

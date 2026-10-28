@@ -37,7 +37,7 @@ Reports: estimated duration, voice coverage, depth, density, hooks, sentences > 
 Below 8/10, fix the script first — fixing after the voice is generated is the most expensive path.
 
 ### Step 4 — Independent fact-check
-Another agent compares the script with `nghien_cuu.md` and the original sources, listing wrong or overstated claims. Fix everything before generating the voice.
+An independent reviewer (a second agent or reviewer if you can run one; otherwise a separate careful pass yourself) compares the script with `nghien_cuu.md` and the original sources, listing wrong or overstated claims. Fix everything before generating the voice.
 
 ### Wording rules
 - **Two text layers:** `loi` = text for the voice (numbers as words: "two thousand five hundred"); `phu_de` = displayed text (digits, `**keyword**` highlighted, `|` = line break).

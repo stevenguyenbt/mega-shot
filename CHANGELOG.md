@@ -5,6 +5,23 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-10-28 — works with every agent
+
+### Added
+- `xp agents status|install|init|uninstall`: link the skill into the skills folders of Claude Code, OpenAI Codex,
+  Google Antigravity, Gemini CLI and Cursor (symlink / Windows junction, or `--copy`), per user or per project, and write
+  a mega-shot block into the project's AGENTS.md / GEMINI.md / CLAUDE.md.
+- `agents/openai.yaml` (Codex display metadata, `$mega-shot`), `GEMINI.md` (imports AGENTS.md), `docs/agents.md`
+  (per-agent install, sandbox and approval notes).
+- `tests/test_skill_spec.py` (run in CI): SKILL.md must follow the Agent Skills spec — name, description ≤ 1024 chars,
+  optional fields, body size, working links.
+
+### Changed
+- SKILL.md rewritten to the Agent Skills standard: 54 KB → 13 KB (~3.4k tokens) with `license`, `compatibility` and
+  `metadata`; detailed guidance moved to new topic files (`references/workflow-details.md`, `footage.md`, `voice.md`,
+  `music.md`, `news.md`, `story.md`, `more-tools.md`, `automation.md`, `glossary.md`). Nothing removed.
+- Instructions are agent-neutral (no tool names specific to one agent); README / FAQ / getting started cover all agents.
+
 ## [2.1.0] — 2026-10-28
 
 ### Added

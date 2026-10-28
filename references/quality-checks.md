@@ -43,7 +43,7 @@ Opening frames: `build/soat/mo_dau_0s.jpg`, `mo_dau_1s.jpg`, `mo_dau_3s.jpg`. Re
 
 ## Before generating voice: `xp check script`
 
-Score the script ≥ 8/10 (depth, comparisons, hooks, density, sources) + an independent agent fact-checks against `nghien_cuu.md`.
+Score the script ≥ 8/10 (depth, comparisons, hooks, density, sources) + an independent fact-check against `nghien_cuu.md` (a second agent or reviewer if you can run one; otherwise a separate careful pass yourself).
 Errors caught by this step: "at 200 m it is almost completely dark" (wrong — blue light remains), "zooplankton produce oxygen" (it is *phyto*plankton), the 2024 "dark oxygen" study stated as fact (strongly disputed), and in a history series 22 issues (dates, hedging, balance) fixed before recording.
 
 ## Image sharpness
@@ -54,7 +54,7 @@ Errors caught by this step: "at 200 m it is almost completely dark" (wrong — b
 
 ## Independent review
 
-Before delivery, an agent that did not make the video watches `out/*.mp4` (extracted frames + transcript), scores it and lists issues with timestamps. The maker never grades their own work. For long series, run a second review after fixes.
+Before delivery, a reviewer that did not make the video (a second agent if you can run one; otherwise a separate, deliberately critical pass yourself) watches `out/*.mp4` (extracted frames + transcript), scores it and lists issues with timestamps. The maker never grades their own work. For long series, run a second review after fixes.
 
 The reviewer fills **`build/duyet_phim.md`** (written by `xp check`). It asks the director's six questions, adapted from chaojifeng-video-design's review method. Each is scored separately; one overall number would hide a failed dimension.
 

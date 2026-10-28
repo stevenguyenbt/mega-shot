@@ -1,235 +1,171 @@
 ---
 name: mega-shot
-description: "End-to-end video studio — type an idea, get a finished video (driven by one video.yaml): multilingual script → cloned narration voice (local VoiceStudio; clone from any audio/video file) → visuals in a style chosen with the user (real footage/archival images, 2.5D parallax, sketch/whiteboard, flat 2D, kinetic typography and 35 painterly styles via huashu-art-motion, Three.js 3D, Blender photoreal, AI images, HyperFrames news graphics, satellite imagery, code-drawn story characters) → shared text/subtitle/label layer → music mix normalized to −14 LUFS → high-quality export plus a <29 MB preview → automatic quality checks, English subtitles and a publishing package. Use when the user wants an explainer, history, timeline, news, medical, motivational or story video, vertical 9:16 (TikTok/Reels/Shorts) or horizontal 16:9, a long YouTube video assembled from several seamless episodes (chapters, subtitles, description), click-worthy YouTube thumbnails, automated YouTube channel production, or higher-end 3D/realistic visuals."
+description: "Makes finished narrated videos from an idea, driven by one video.yaml: researched, fact-checked script; narration in a cloned or built-in voice (local VoiceStudio TTS, voice cloning from any audio/video file); visuals in a style chosen with the user (stock footage and archival images, 2.5D parallax, whiteboard, flat 2D, kinetic type, 35 painterly styles, Three.js or Blender 3D, AI images, news graphics, satellite imagery, code-drawn story characters); music mix at -14 LUFS; high-quality export plus phone preview; automatic quality checks; English subtitles (SRT); YouTube thumbnails; publishing package. Use when the user wants an explainer, history, timeline, news, medical, motivational or story video; a short vertical 9:16 video for TikTok, Reels or YouTube Shorts; a long 16:9 YouTube video or multi-episode series with chapters; subtitles; voice cloning; thumbnails; 3D or realistic visuals; or automated YouTube channel production."
+license: MIT
+compatibility: "Needs a terminal agent that can run shell commands; uv + FFmpeg; Chromium via Playwright; optional VoiceStudio (local TTS), Node.js, Blender; network access for stock footage/music search and optional downloads."
+metadata:
+  version: "2.2.0"
+  author: "stevenguyenbt"
+  homepage: "https://github.com/stevenguyenbt/mega-shot"
 ---
 
 # mega-shot · Video studio
 
-One video = a folder `videos/<name>/` with `video.yaml` (script + settings) and `film.html` (how each scene is drawn). The framework handles narration, timing, subtitles, transitions, post-processing, mixing, export and QA.
+One video = a folder `videos/<name>/` with `video.yaml` (script + settings) and `film.html` (how each scene is drawn).
+The framework handles narration, timing, subtitles, transitions, post-processing, mixing, export and QA. Output: a
+high-quality upload file, a < 29 MB phone preview, subtitles and a publishing package in `videos/<name>/out/`.
 
-**Layout.** This skill folder is `~/.claude/skills/mega-shot` (or `<project>/.claude/skills/mega-shot`). Run the CLI from the **user's project folder**: `<skill>/xp …` (bash) or `<skill>\xp.cmd …` (Windows); below it is just `xp`. Project data lives in `<project>/.mega-shot/`, videos in `<project>/videos/`. Requires `uv` and `ffmpeg`. Engine regression tests: `tests/kiem_thu.py`.
+## Running the CLI
 
-> **Naming note.** The engine was built in Vietnamese. Commands have English names (old Vietnamese names still work), and every YAML key has an English name (`scenes`, `narration`, `subtitle`, `voice`, …) that is translated to the internal Vietnamese key (`canh`, `loi`, `phu_de`, `giong`, …) when the file is read — both work and can be mixed; if a block has both, the Vietnamese one wins. Full table: `python <skill>/tools/yaml_keys.py --markdown`. Inside `film.html`, `c.data.<key>` always uses the **internal** names. Keys without an English name (e.g. `hf`, `ve_tinh`, `yk`, thumbnail keys) are written as shown. File names (`nghien_cuu.md`, `giay_phep.json`, …) stay Vietnamese — see the Glossary.
+- The CLI is `xp` (bash/zsh) or `xp.cmd` (Windows) **inside this skill's folder**. Run it by path **from the user's
+  project folder**, never from inside the skill folder: `<skill-folder>/xp setup` or `<skill-folder>\xp.cmd setup`.
+  Below it is written as just `xp`.
+- Project data lives in `<project>/.mega-shot/`, videos in `<project>/videos/`. Requires `uv` and `ffmpeg`.
+- Commands and YAML keys have English names; the old Vietnamese names still work (the engine was built in Vietnamese,
+  so some file names like `nghien_cuu.md` research notes and `giay_phep.json` licence book stay Vietnamese). Inside
+  `film.html`, `c.data.<key>` uses the internal Vietnamese names. Details: [references/workflow-details.md](references/workflow-details.md),
+  [references/glossary.md](references/glossary.md).
+- Works in any agent that reads Agent Skills (Claude Code, Codex, Antigravity, Gemini CLI, Cursor). `xp agents install`
+  links this folder into their skills directories; `xp agents init` writes a short block into the project's AGENTS.md /
+  GEMINI.md / CLAUDE.md. Sandbox/approval notes per agent: [docs/agents.md](docs/agents.md).
+- Shell commands must be allowed to use the network (uv packages, stock search) and to start a local server on
+  127.0.0.1 + headless Chromium (rendering). Some renders take minutes — let them finish.
 
-## Start here — `xp setup`
+## Mandatory rules
 
-**Always run `xp setup` first** (new session or new machine, a few seconds). It checks uv, FFmpeg, Chromium, the GPU encoder, VoiceStudio (starts its backend headless — no window — if installed but not running), voice samples, API keys, the download policy, models, fonts and the optional huashu-art-motion skill, and prints **NEEDS YOUR INPUT**. Before doing anything else, ask the user about every listed item (approve downloads with size + licence, decide the download policy, provide keys/voice samples) — then run `xp setup --install <ids>` / `xp setup --policy` only for what they approved. Never download or install without approval; never print keys. API keys come from environment variables, `<project>/.env` (template `.env.example` in this folder) or the legacy `.mega-shot/keys.env`; tell the user where to put them, never ask them to paste keys into chat. Details: `references/setup.md`.
+1. **Run `xp setup` first** (every new session or machine). It prints **NEEDS YOUR INPUT**: ask the user about every
+   item (downloads with size + licence, the auto-download policy, keys, voice samples) and run
+   `xp setup --install <ids>` / `xp setup --policy` only for what they approved. **Never download or install anything
+   without approval** (assets outside the approved policy, models, tools, music).
+2. **Never print, paste or commit API keys/tokens.** Keys come from environment variables or `<project>/.env` (template
+   `.env.example` in the skill folder); tell the user where to put them, never ask them to paste keys into chat. Never
+   type passwords — the user signs in themselves (`xp channel auth`).
+3. **Ask the visual style first** (Step 0) and the subtitle/title text styles in the same round; never decide silently.
+   Ask the user one question per decision; use your agent's question/choice tool if it has one.
+4. **Research and fact-check before narration.** Write `nghien_cuu.md` (10–20 sourced facts) first; every number on
+   screen has a source. After `xp check script` passes, fact-check the script against the sources: if you can run a
+   second agent or reviewer, have it fact-check independently; otherwise do a separate careful pass yourself.
+5. **Voice cloning needs consent:** only clone a voice the user owns or has explicit permission to use
+   (`xp voice add … --consent`).
+6. **Licences:** asset/music sources must allow commercial use; log every licence (`giay_phep.json`, `GIAY_PHEP.md`,
+   `MUSIC_LICENSES.md`) and credit what needs credit. Never rip video/audio from YouTube/TikTok; online clips only
+   through `xp clip`'s licence gate. Watching other videos is view-only: pause, mute and stop them when done.
+7. **English subtitles (SRT) for every YouTube video**, delivered with the video (you translate `en.todo.json`).
+8. **Nothing goes public without the owner:** channel uploads are private; never approve topics or publish on your own;
+   ask before the first `xp social` post to each new account.
 
-## Voice and music from the user's files
+## Workflow (in order)
 
-- **Voice:** when the user wants their own (or a permitted) voice, ask for **an audio or video file** with ≥ 15 s of one person speaking, and confirm they own the voice or have explicit permission. Then `xp voice add <file> --name <name> --consent`: video → audio is extracted, VoiceStudio `/clean-audio` (Demucs) removes music/noise, Whisper finds the best 6–10 s of continuous speech, the clip + exact transcript become `.mega-shot/voices/<name>/`, a clone profile is saved in VoiceStudio, and a test sentence (`thu.wav`) is generated and scored. No file? `xp voice add --archetype documentarian` (built-in English narrators: documentarian, storyteller, anchor, librarian, calm-guide, explainer, teacher). Use with `voice: { sample: <name> }`. `xp voice list`; `xp voice check` before using a voice for anything important.
-- **Finding background music (offer it before narration):** Pixabay Music has a good commercial-use library but no music API, so: `xp music brief` (in the video folder) writes `build/music/brief.md` from the script and style (mood keywords, BPM range, length, instrumental only) with Pixabay Music search links → open them in the browser, shortlist 3–5 tracks and **post their track-page links in chat**; the **user downloads** the ones they like → `xp music check` (scans ~/Downloads from the last 24 h, or pass files) scores each 0–100: length vs video, loudness, clipping, silent intro, **mid-track drop-outs**, energy steadiness, BPM, field-recording detection and **sung vocals** (Demucs; vocals clash with narration) → `build/music/listen.html` (30 s previews, energy chart, best continuous section); `--phone` also makes `NN_<track>_preview.mp4` (score card + 30 s of the track **mixed under the video's real narration**) to send to the user → user picks → `xp music add <file> --name bg --start <s> --duration <s> --license "Pixabay Content License · <track URL>" --use` → `xp timeline` → `xp mix`. Never scrape or auto-download from Pixabay Music; never put tracks with vocals under narration unless the user insists.
-- **Background music from a file:** ask for **an audio or video file** (and its licence); `xp music add <file> --name <name> [--start s --duration s] [--license "…"] [--use]` extracts, trims, normalizes to −16 LUFS with fades, stores `.mega-shot/music/<name>.mp3`, logs the licence in `MUSIC_LICENSES.md`; `--use` sets `music.file` in the current `video.yaml`/`loat.yaml`. `xp music list`.
+0. **Optional viral research** — offer it, never force it: `xp viral "<topic>"` ([references/viral-research.md](references/viral-research.md)).
+1. **Style (always ask).** Send/show the user `references/style-gallery.jpg` (open the image file and share it) and
+   ask: family first (real images / drawn 2D / 3D / art style & AI images), then the exact look, with a recommendation.
+   Also show `references/text-styles/overview-subtitles.gif` + `overview-titles.gif` and recommend a pairing. Record
+   `style: { kind, huashu, subtitle_style, title_style }` ([references/styles.md](references/styles.md), [references/text-styles.md](references/text-styles.md)).
+2. **`xp new <name> --format 9x16|16x9|1x1 --template <t>`** — `footage` (recommended), `blank`, `threejs`, `blender`,
+   `ai-image`, `manifesto`, `medical`, `news`, `story`, `philosophy`.
+3. **Research → `nghien_cuu.md`** (search the web if your agent can): facts with sources, mechanisms, comparisons,
+   misconceptions ([references/script-and-voice.md](references/script-and-voice.md), [references/sensitive-topics.md](references/sensitive-topics.md)).
+4. **Script** in `video.yaml`: 4 layers per idea (what → why/how → what it means → hook to the next). `narration` =
+   spoken, `subtitle` = on-screen (`**keyword**`, `|` line break). Also write the `publish` block ([references/publishing.md](references/publishing.md)).
+5. **`xp check script`** → revise until ≥ 8/10 → independent fact-check (rule 4) → fix everything.
+6. **Music (offer before narration):** `xp music brief` / `xp music check` / `xp music add`, or compose with
+   `xp compose` ([references/music.md](references/music.md)). 16:9 long videos have no music by default.
+7. **`xp narrate`** — VoiceStudio runs headless; `voice.speed` 1.1–1.2 suits dense shorts; fix ⚠ lines with
+   `--redo <id>` ([references/voice.md](references/voice.md)).
+8. **Visuals:** `search:` entries → `xp assets`, then **open `build/tim/<id>_phuong_an.jpg`** and pin `pick:` where
+   wrong ([references/footage.md](references/footage.md), [references/visual-backends.md](references/visual-backends.md)). Other backends: `xp art`, `xp hf`,
+   `xp blender`, `xp prompts`/`xp images`.
+9. **`xp preview`** → open `build/thu.jpg` and mid-transition frames.
+10. **`xp mix` → `xp review` → `xp render` → `xp export` → `xp check`.** Fix everything `review` lists before rendering;
+    render is cached per scene, so fix only what broke, at most 3 passes. Open `build/kiem_cat/tong.jpg`. Have
+    `build/duyet_phim.md` filled by an independent reviewer (second agent if available, otherwise a separate careful
+    pass) — pass = every dimension ≥ 7, average ≥ 8 ([references/quality-checks.md](references/quality-checks.md)).
+11. **English subtitles:** `xp subtitles` writes `out/subtitles/en.todo.json` for non-English videos → you translate it
+    to `en.json` (same ids, keep `_cues_sha`) → run `xp subtitles` again.
+12. **Deliver:** send/show the user the export and phone preview, and paste the title, caption and hashtags into chat
+    (`out/youtube_dang_bai.md`, `out/dang_bai_mxh.md`).
 
-## Optional — viral research (offer it, never force it)
+Full step-by-step details: [references/workflow-details.md](references/workflow-details.md).
 
-When the user gives a topic, **offer** (one `AskUserQuestion`, "Run viral research first? ≈ 3–5 min") to study what already goes viral. If yes: `xp viral "<topic>" [--q "alt query|English query"] [--format short|long]` → ranks top YouTube videos by viral score (views ÷ subscribers, views/day, engagement) via the official API (metadata only; free `YOUTUBE_API_KEY`, otherwise WebSearch + the browser), then **watch the top 3–5 (plus 2–3 TikToks) in the browser — view only, pause and mute when done**, fill `viral_phan_tich.md` (hook 0–3 s, pacing, on-screen text, structure, ending, title formula), extract 3–5 viral factors and propose 2–3 directions. Inspiration, not imitation: never download or reuse others' video/audio/thumbnails/script text. `references/viral-research.md`.
+## Command table (most used)
 
-## Step 0 — choose the visual style (always ask)
+| Command | What it does |
+|---|---|
+| `setup` | check prerequisites, list what needs the user (`--install <ids>`, `--policy`, `--json`) — run first |
+| `new <name>` | new video from a template (`--format`, `--template`) |
+| `viral "<topic>"` | optional viral research |
+| `check script` | score the script before narration |
+| `voice add\|list\|check` | clone a voice from an audio/video file (`--consent`), or `--archetype documentarian` |
+| `music brief\|check\|add\|list` | find, score and add background music; `compose` = original ABC score |
+| `narrate` | narration per scene (`--redo <ids>`, `--import-from <dir>`) |
+| `assets [scene…]` | search, score, download and cut footage/images |
+| `art` / `hf` / `blender` / `prompts`+`images` | huashu-art-motion / HyperFrames / Blender / AI-image scenes |
+| `preview` | preview frames + contact sheet |
+| `mix` · `review` · `render` · `export` · `check` | mix → pre-render review → cached render → export + publish package → QA |
+| `all` | narrate → mix → render → export → check |
+| `subtitles` | source-language + English SRT/TXT (`--langs ja,es`) |
+| `series new\|run\|assemble` | long YouTube video from episodes |
+| `thumbnail [new]` | YouTube thumbnails |
+| `channel …` / `social …` | automatic private YouTube channels / posting via your own adapters |
+| `studio` | local dashboard at http://127.0.0.1:3901 |
 
-Before research or script, **ask the user which visual style they want** — never decide silently. Send `references/style-gallery.jpg` (12 labelled examples) and ask with `AskUserQuestion`: family first (real images / drawn 2D / 3D / art style & AI images), then the exact look, recommending one for the topic. Styles: real footage & archival images, 2.5D parallax stills, sketch/whiteboard, stick-figure story, flat 2D (Kurzgesagt-like), Vox collage, kinetic typography, 3Blue1Brown math, keynote UI, finance charts, 35 painterly art styles (huashu-art-motion), Three.js 3D, Blender photoreal, AI images, custom canvas — or mixed per scene. Record it as `style: { kind: <id>, huashu: <grammar or art style> }`. Drawn styles come from the companion skill **huashu-art-motion** (`xp setup --install huashu` clones it into `vendor/`, or install it as a sibling skill): put `huashu: { grammar: …, cues: [...] }` on a scene and run `xp art` after `xp narrate` (cues can land on a spoken word with `at_word`). Full menu, topic → style table and examples: `references/styles.md`.
+Every command and option: [references/glossary.md](references/glossary.md).
 
-**Cartoon characters (optional):** code-drawn characters with poses, expressions and lip-sync from the narration (`engine/core/puppet.js`). The user can give a reference image of their own character → write a spec from it. Previews `references/characters/demo-*.gif`, guide `references/characters.md`, `xp character demo`.
-
-**Text animation (same question round):** also send `references/text-styles/overview-subtitles.gif` (7 subtitle styles) and `overview-titles.gif` (8 title styles), recommend a pairing. Record as `style: { subtitle_style: <id>, title_style: <id> }` (scene override `title_style:`), then `xp timeline`. Springs/interpolation like Remotion, driven by word timestamps. `references/text-styles.md`; regenerate previews: `xp text-styles`.
-
-## Workflow (in this order)
-
-1. **`xp new <name> --format 9x16 --template <template>`** — templates: `footage` (real footage/archival images, recommended), `blank` (Canvas 2D), `threejs`, `blender`, `ai-image`, `manifesto` (photocopy-halftone cut-outs, red 3D block words slammed in on the spoken word — `references/manifesto.md`), `medical` ("what happens inside your body when…" 3D — `references/medical3d.md`), `news` (HyperFrames graphics), `story` (2D story films — `references/story/README.md`), `philosophy` (3D sets + quote cards). Old names: `trong`, `anh-ai`, `tuyen-ngon`, `y-khoa`, `tin-tuc`, `truyen`, `triet-ly`.
-2. **Research → `nghien_cuu.md`** (*research notes*, mandatory): 10–20 sourced facts, mechanisms (why/how), relatable comparisons, common misconceptions, open questions. Read `references/script-and-voice.md`.
-3. **4-layer script** in `video.yaml` (what → why/how → what it means → hook to the next idea). `narration` = spoken text, `subtitle` = on-screen text (digits, `**keyword**` highlighting, `|` manual line break). Sensitive topics: `references/sensitive-topics.md`. **Also write the `publish` block** (title options, hook, topics, drama, trust line, tags, caption) — `references/publishing.md`.
-4. **`xp check script`** → revise until ≥ 8/10. Then an **independent agent fact-checks** the script against `nghien_cuu.md` and the original sources — fix everything before generating voice.
-5. **`xp narrate`** — VoiceStudio is started **headless** when not running (`xp voicestudio start|stop|restart|status`; the app window is only needed once, after install). Defaults: voice 55 % + music 60 % (light ducking; `music.duck: <ratio>` for more), `voice.speed: 1.08`. Dense short-form narration often feels slow at 1.0 — 1.1–1.2 works well. Word timestamps are stored for karaoke subtitles. **Changing `speed` does not re-synthesize** (audio and timestamps are time-stretched) — use it to tune total length. On ⚠ warnings fix the sentence and `xp narrate --redo <id>`.
-6. **Visuals** — choose a backend with `references/visual-backends.md`:
-   - **Real footage / archival images:** `search: [{query: …}, {query: …}]` (2–3 clips per scene) → `xp assets`: candidates are scored by real sharpness after filling the frame, relevance to the query (no shared keyword = heavy penalty), file weight; the most dynamic segment of each clip is extracted (Lanczos 1.2× + light sharpening); stills get automatic 2.5D layers. **Always look at `build/tim/<id>_phuong_an.jpg`** (*options sheet*); if wrong, pin `pick: <asset id>` (recommended — never drifts; ids in `build/tim/<id>.json`) or `pick: N`. Only downloads if `.mega-shot/chinh_sach.json` (*download policy*) allows it.
-   - **The user's own files** (product photos/videos, own footage): `search: [{ file: assets/x/photo.jpg, type: anh, crop: [x0, y0, x1, y1], parallax: false, author, license }]` — used as-is (copied into `tainguyen/<id>`), `crop` removes baked-in sale text/banners (fractions 0–1), `start` picks the start of a video; credits go to `giay_phep.json`. Ads: never before/after shots or cure/growth claims (platform health-ad policies) — inform first, product second.
-   - AI images: `xp prompts` → the user generates images → `anh/` → `xp images` · Blender: `xp blender <id> --only-frame 0` → `xp blender <id>` · one asset: `xp download polyhaven <id>`.
-   - **Smart crop:** landscape footage in a vertical frame is centred on the most detailed area (blown highlights penalized); override with `center_x: 0–1` per clip. Long clips are split into ~3 s wide/close "camera angles"; pin a segment with `start: <seconds>`.
-7. **Effects (built into the footage template, kept subtle):** auto-rotating transitions (`phong` zoom, `lia` pan, `fade`, `lan-xuyen`, `gon-nuoc` ripple, `loe` flare); overlays `style.overlays` / scene `overlays` (`tuyet-bien` marine snow, `anh-day-nuoc` caustics, `tia-nang` god rays, `bot-khi` bubbles); punch-in when the title is a number; `graphic` (`kind`: `so-sanh-cao` height comparison, `dem-so` counter, `banh-tron` pie, `thanh-ty-le` ratio bar, `so-sanh` bar comparison, `da-kim-loai` metal rock); **3D ocean cross-section:** scene `bien3d: { tu, den, moc: [titanic, snailfish, challenger, sperm-whale], everest }` (0–11,000 m, probe dives `tu`→`den`; `backends/three/ocean3d.js`) + `style.ocean_hud: true` (live DEPTH/PRESSURE/TEMP/SUNLIGHT readout; footage scenes give `sau: m | [from, to]`; replaces `depth`); depth gauge `depth` (shown when > 0); `reveal: true` (riser); `filter` (CSS colour filter); `fade_to_dark`; `title_box`; `zoom0 < 1` (image smaller than the frame, centred — e.g. a whole globe).
-8. **`xp preview`** → look at `build/thu.jpg` and frames mid-transition. `references/quality-checks.md`.
-9. **`xp mix` → `xp review` → `xp render` → `xp export` → `xp check`** (details in "Fix only what broke"). `mix` adds sound effects automatically (whoosh/boom/riser/tick/ambience — `sfx`) and snaps scene cuts to the music beat. `export` writes a **high-quality upload file** (CRF 17, no size limit) plus a **preview under 29 MB** for phones, then runs **`xp publish`**: `out/youtube_dang_bai.md` (titles, description ≤ 5,000 chars, tags, hashtags, pinned-comment credits, thumbnails, limit checks) and, for vertical videos, `out/dang_bai_mxh.md` (TikTok/Reels caption + Shorts title). `xp check` also writes **`build/duyet_phim.md`**, the director's six-question sheet (sound, picture, look, pacing, story, accuracy). An independent agent that did not make the video fills it: each dimension scored separately with what was actually watched/heard as evidence; anything not really watched or heard is `not reviewed`, which is not a pass. Pass = every dimension ≥ 7 and average ≥ 8 (`references/quality-checks.md`). When the video is done, paste the caption, hashtags and title into chat so the user can copy them.
-10. **English subtitles — ALWAYS, for every YouTube video (long, series or Shorts).** `export` and `series assemble` run **`xp subtitles`**: sentence-level captions in the source language → `out/subtitles/<name>.<lang>.srt` + `.txt`. If the video is not in English it also writes `out/subtitles/en.todo.json`; **you (the AI) translate it** — copy to `en.json`, replace every value with a faithful, natural English subtitle (same ids, nothing merged/split, keep hedges, standard English spelling of names/places, digits for numbers, keep `_cues_sha`) — and run `xp subtitles` again → `<name>.en.srt` + `<name>.en.txt` + `out/phu-de-<n>-ngon-ngu.zip`, listed in `youtube_dang_bai.md`. Never deliver a YouTube video without the English SRT. Re-narrated/re-timed video → the old translation is stale (`_cues_sha`) → translate again. Long cues are split automatically (≤ 2 lines × 42 chars). More languages: `xp subtitles --langs ja,es` (same `<lang>.todo.json` → `<lang>.json` flow).
-
-### Fix only what broke (required; essential for long videos)
-
-1. `xp narrate` — every line is listened back (local Whisper); a line matching < 0.8 is re-synthesized with up to 3 other seeds and the best take kept (`voice.retry_below`, `voice.attempts`; raise to 0.9 / 5 for name-heavy scripts). Only changed lines are re-synthesized (`--redo <id>`). Do not re-check the whole narration with a big Whisper model afterwards — it is slow and the per-line check already ran.
-2. `xp assets` (+ automatic colour matching) → **`xp review`** (seconds): dropped/garbled words per line (listen-back vs `narration`, number formatting ignored), `subtitle` text that says something different from the speech, and on-screen text drawn past the frame edge. It also checks **the first 3 seconds** (voice starts ≤ 0.6 s, first sentence done by ~3.5 s, the frame at 0.2 s not black/empty, text on screen by 1 s, picture changes by 3 s — frames in `build/soat/mo_dau_*.jpg`) and the **reading time** of on-screen text other than the karaoke subtitle (titles, labels, graphics: shown ≥ 0.6 s + words ÷ ~3/s; sampled every 0.25 s, `--skip-read` skips it). Report: `build/soat/bao_cao.md` + `.json`. It cannot see text burned into source footage — look at preview frames for that. **Fix everything it lists before rendering.** The voice model drops words in comma lists of proper names → one name per short sentence, or move a long list to its own scene.
-3. `xp render` renders PER SCENE into `build/doan/` and joins the H.264 segments without re-encoding (identical to a single pass: same frame count, PSNR ≈ 46 dB). A scene is reused when its own data/duration/subtitles/assets, the previous scene (its tail shows in this scene's incoming transition), film.html and the engine are unchanged → fixing one scene re-renders it + the next one. `--scene <id>` forces a scene, `--full` = single pass. Videos with a running timeline/depth bar (`year`, `depth`) also key on the scene start time.
-4. `xp export` → `xp check` → fix → `xp render` (only changed scenes) → **at most 3 passes**, then report what is left.
-
-**Cut self-check:** `xp check` inspects ±1.5 s around every scene change and in-scene cut of the FINAL video (`tools/kiemcat.py`): single-frame flash, short black dip (a cut INTO a dark scene is fine), frozen picture after a cut, clipping, and clicks in the VOICE stem `build/giong.wav` (SFX ticks and beats on cuts are intended, not flagged). It draws filmstrip + waveform per cut → **always open `build/kiem_cat/tong.jpg`** (flagged cuts first) and also look for what it cannot see (overlay hiding subtitles, title overflowing). You cannot listen: report audio findings as numbers. `xp check` also listens to the END of the export and warns if the closing sentence is cut; the last scene always gets ≥ 1.5 s after the last word (`pacing.tail`).
-
-**Colour matching (footage):** after `xp assets`, `tools/mau.py` measures every VIDEO shot (per-channel mean, luma p5/p50/p95), pulls each toward the video's median (grey balance clamped 0.85–1.18, contrast ±20 %) and applies an optional look: `grade: { look: am-dien-anh (warm cinematic: teal shadows / warm highlights) | net-tuong-phan (neutral punch) | khong (none), amount: 0.6, balance: true }`. Runs automatically; `xp grade [scene…]` for existing videos. Frames are graded in place with a `.mau.json` marker (never stacks); changing the look = `xp assets <scene>` then `xp grade`. Stills are never graded. Check `build/mau/truoc_sau.jpg`.
-
-## More production tools
-
-**Original music per video — `xp compose` (old name `xp nhac`)** (composer from [huashu-motion](https://github.com/alchaincyf/huashu-motion), MIT): write a score for THIS video in ABC notation (`nhac.abc` in the video folder; `!mark:<scene id>!` at each scene start, `!hit!` on the reveal, `!rise(! … !rise)!` builds, dynamics `!p! … !f!`, `!fermata!` at the end; voices `V:<name> inst=<piano|strings|lowstr|pizz|harp|horn|marimba|vibes|flute|guzheng|erhu|dizi|bass|…> role=melody gain=`), set `music: { score: nhac.abc, volume: 0.3–0.6, duck: true }`, run `xp compose` → `build/nhac_soan.wav` (46 real-instrument sample sets, CC0/CC-BY; ~10 s; tempo bends ≤ 3–5 % so every mark lands on its scene; no network). `xp mix` uses it automatically. For multi-section scores, generate the ABC from a per-scene chord plan with a small script so every voice has identical bar lengths (examples: `engine/nhac/vi_du_tao_nhac_tin.py` news bed, `engine/nhac/vi_du_dong_luc.abc` motivational score). Composed beds have no hiss, unlike many stock tracks. Read `references/chuyen-dong/sound.md` + `rhythm.md` first. One-time setup (ask first — downloads): `git clone --depth 1 https://github.com/alchaincyf/huashu-motion .mega-shot/tham-khao/huashu-motion-src`, then in that folder `OM_SAMPLES=<project>/.mega-shot/tools/om-samples node cli/om.js samples build` (needs `bsdtar` on PATH — on Windows copy `C:\Windows\System32\tar.exe` to `.mega-shot/tools/bin/bsdtar.exe`).
-
-**Motion library — `references/chuyen-dong/`** (from huashu-motion, MIT): 20 motion languages (what each *says*, when to use) + a technique cookbook (easing, mask reveal, pill highlight, count-up, draw-on, stamp, chapter counter, continuity devices). Read the matching language file before designing new graphics.
-
-**HyperFrames motion graphics — template `news` + `xp hf`:** news-style scenes in HTML + GSAP rendered by HyperFrames (HeyGen, Apache-2.0; install with `npm i hyperframes gsap world-atlas d3-geo topojson-client` in `.mega-shot/tools/hyperframes` after asking; disable telemetry). A scene gets `hf: { kieu: tieu-de (headline) | ban-do (map) | con-so (number) | hai-phia (two sides) | dong-thoi-gian (timeline) | nguon (sources), … }` (see `engine/hyperframes/tin-tuc.html`); top-level `news: { channel, date, ticker_label, ticker: [...] }` drives the brand bar, date, live dot and ticker. The template uses editorial-collage + data-story: pill highlight behind `**bold**` words, count-ups that land with a slam + drawn underline, paper cards settling with a 1–4° rotation, an "unverified" stamp, timeline entries that dim earlier items, chapter counter `03/08`. `xp hf` renders each scene (duration from the narration) to RGBA PNGs in `build/layers_hf/<id>/` (cached per scene); `film.html` draws footage (`search`, optional) → HF graphics → karaoke subtitles, so narration, review, render cache and cut checks work unchanged. Animation times can be `luc: "<word>"` = when the narration says that word. Maps: `vung: [lonMin, latMin, lonMax, latMax]`, `diem: [{ten, lat, lon, nhan, trai, dy, luc}]` — `engine/hyperframes/ban_do.mjs` pre-projects Natural Earth (no network at render); Crimea is drawn hatched (annexed 2014, not recognised by most states); labels auto-layout. Compositions must be deterministic: no `Math.random`, `Date.now`, network. First scene `hf.dau: true` = headline visible on frame 0 (cover). News scripts (`news:` present) are scored in news mode by `xp check script`: every scene with a number must say WHO reported it. **Neutrality for war/politics:** attribute every figure, put both sides' claims side by side with "could not be independently verified", only use pages actually opened, never events that could not be verified, maps are "illustrative locations, not front lines".
-
-**Evidence Films / satellite scenes — `xp satellite`** (styles from lemo-opuscar, MIT; read `references/evidence/README.md`). `xp satellite <name> --center LAT,LON --km 20 [--before <window>] --to videos/x` fetches real plates (NASA Blue Marble + Sentinel-2 10 m, clearest recent pass, mosaicked, no keys) → scene `ve_tinh: { thu_muc, diem, duong, vung, truoc, mau_lai }` in the news template: dive from region to place, analyst grey, reticle locks, range line with an amber km reading, outlines, before/after scan, imagery credit chip. Never claim on screen what 10 m imagery cannot show; a claimed area/front line says whose claim. The other 7 evidence styles are style prompts in `references/evidence/`.
-
-**Scenes from an online video — `xp clip <link>`:** licence gate FIRST (metadata via yt-dlp, nothing downloaded): allowed automatically = Creative Commons BY / BY-SA / CC0 / public domain (NC/ND refused: monetised channels + an edit is a derivative), US-government hosts and official channels (NASA, NOAA, USGS…), and the user's own channels listed in `.mega-shot/kenh_cua_toi.json`. Anything else is refused unless the user passes `--consent "<who allowed it / why>"` for THAT link (logged in `.mega-shot/clip_quyen.jsonl`, marked `tu_xac_nhan` → `xp channel upload` and `xp social` refuse the video; `MS_CHO_CLIP_TU_XAC_NHAN=1` for a manual one-off). Then: download ≤ 1080p into `.mega-shot/tai_ve/clip/`, scene cuts + ~4 s windows, motion/sharpness, burned-in captions/logos/end cards (OpenCV) with a suggested `crop`, transcript (local Whisper) → `build/clip/<name>/canh.jpg` (look at it — faint captions can slip through), `goi_y.yaml` (ready `search` entries), `canh.json`, `loi.md`. Studying a viral video's structure without reusing its pictures is always fine (transcript + cut rhythm → write a NEW script).
-
-**Long YouTube video from several episodes:** `xp series new <name> --episodes N --format 16x9` → write each episode (last line hooks into the next) → `xp series run` → `xp series assemble` → `out/<name>_youtube.mp4` + chapters + .srt + publishing package + thumbnail. `references/long-series.md`.
-
-**YouTube thumbnails:** `xp thumbnail new` → write `loi_nhac_anh_bia.md` (AI image prompts) and/or pick the best real frames/archival images → (optional) the user generates AI images and drops them into Studio → `xp thumbnail` → `out/anh_bia_*.jpg` + a YouTube home-page preview. Eleven styles via `kieu:` (gallery `references/thumbnail-styles.jpg`): `classic`, `poster` (+ `tong: black-gold`), `gold-title`, `big-number`, `versus`, `red-circle`, `breaking-news`, `mystery`, `minimal`, `parchment`, `cinematic`. `poster` = history-documentary look (figure left over a different bright background, big black slab-serif title + icon/flag + year range) pairs well with "The ENTIRE History of X" titles. `references/thumbnails.md`.
-
-**3D quality kit and model library:** Three.js scenes use physical materials with micro-variation (`mats3d.js`), bevelled/tapered/lathed geometry (`geo3d.js`) and soft shadows. Objects you will reuse are rebuilt **once** from a reference photo with `xp model new <name> --from pixabay:<id>`, then `xp model check` (2–3 passes against a 4-view sheet), and used via `set3d: { kieu: vat, ten }`, `extra: [{ ten }]` or `vat3d: { ten }`. The library (`.mega-shot/models3d/`) starts empty. Adapted from img2threejs (Apache-2.0). `references/models3d.md`.
-
-**People in a video → build them from a reference image:** every recurring character (historical figure, profession, narrator) is rebuilt from a reference picture (the user's file, Pixabay, or Wikimedia when allowed): `xp model new <id> --from … --nguoi`, then `xp model check` (REFERENCE / FRONT / SIDE / BACK). In scenes: `set3d: { …, nguoi: <id> }`. Background crowds may use `thoi_dai` era presets (Egypt, Greece, Rome, medieval, China, old Vietnam, Japan, Arabia, 19th century).
-
-**Medical 3D — template `medical`** (`references/medical3d.md`): "what happens inside your body when…" shorts with a running BODY CLOCK (`body_clock: [from, to]` seconds), a different stylised glossy 3D set per time mark from `engine/backends/three/medical3d.js` (procedural, no downloads, no gore): `yk: ly-ca-phe | co-the | da-day | mach-mau | nao | thu-the | tim | gan | phan-tu | luoi | kenh-nhiet | khop | ban-tay | ly-bia | da | mui`. `co-the` = semi-transparent human with organs: `soi: [organs]` highlights + labels, `bay: <organ>` flies the camera in. Body sounds (CC0, `tools/am_co_the.py`): `tu-nhien:tim-dap-72|tieng-uc|soi-bung|lap-lanh|…`. Health rules: sources from EFSA/FDA/NHS/MSD/PubMed in `nghien_cuu.md`, independent fact-check before narration, no treatment advice, caption ends with a "not medical advice" disclaimer.
-
-**Story films — template `story`** (read `references/story/README.md` first). Beat sheet: "What if you…" hook → named character + stakes in numbers → choice→cost loop with a RULE CARD per tip → twist ~25 % → countdown → all-is-lost + silence → turn → theme line → cliffhanger end card. `characters:` = character bible (look `ve`, voice `giong: { mau }`); a line spoken by a character has `speaker: <id>` (`xp narrate` uses that voice). Characters are jointed 2D skeletons animated like a game (`engine/core/nhanvat.js`, `nhanvat_clip.js`): 40+ keyframed + procedural clips cross-faded by a per-character `hanh_dong` timeline, leg IK on sloped ground, arm IK onto other characters, look-at, turns between angles, springs for hair/clothes, per-syllable lip-sync, 11+ expressions; clips retarget to any body and look. Character studio without AI images: `ve: { kieu: anh, xuong: { … } }` — vector parts + PhotoCraft-style layer effects (`xuong_nhanvat.js`, `hieuung_lop.js`), anatomy solver from a text description `xuong.mo_ta` (Vietnamese-only parser) with automatic joint QA, anime styles (`xuong.phong_cach: anime|anime-manga|anime-mem|anime-chibi|anime-thanh-nien`), 19 body-shape presets, 13 hair styles and `MS.xuong.ngauNhien(seed)` random casts; photo faces via `xuong.mat_anh` (clean low-res pictures first with `xp restore <image>`); cut-out characters from a drawn rig sheet (`tools/tachmanh.py`). Gallery `/ms/core/nhanvat_demo.html`, sheets `engine/core/xuong_sheet.html`. **AI design loop** (best quality, no image AI): `xp cast-design new <id> --desc … [--ref photo]` → you edit spec.json as designer → `xp cast-design draw` review sheet (hero, silhouette/grey/phone tests, 6 clips, 12 expressions, contrast + cast-likeness measurements) → you score 8 rubric items (`xp cast-design score`) → ≤ 3 rounds → `xp cast-design lock` → `xp cast-design yaml`; library `.mega-shot/nhanvat/`, cast check `xp cast-design cast` (`references/characters-ai-loop.md`). **Redraw a given flat/cel picture exactly** (avatar, sticker, cartoon) as layered SVG, recolour it, extend it (full body) or turn it into a cut-out character: `xp redraw phan-tich <image>` → fix palette names → `xp redraw ve` (numeric line/colour check) → `doi-mau` / `mo-rong` / `rig` (`references/ve-lai.md`). **New actions without hand-written numbers:** `xp pose-editor mo [--nv <id>]` = FK pose & clip editor (drag joints, keys with bezier curves, onion skin, save to the shared clip library); AI path: write clip JSON → `xp pose-editor them` → `xp pose-editor soat` strip; `hanh_dong` entries accept `chuyen: vao-ra|nay|…` bezier transitions (`references/dung-dang.md`, ideas from ArtCraft). Each line has `shots:` (1–4 camera shots: `set`, framing `khung`, camera `cam`, placements `nv`) drawn by `engine/core/truyen.js` (code-drawn parallax sets with weather and light); dialogue 35–50 % of lines as question→answer exchanges; `the_luat` rule cards, `hud`, `ket` end cards; subtitle style `giua` (big centred chunk; red danger words via `style.danger_words` — `!!…!!` is shown literally, do not use it). `xp check script` has a story mode (`story:` key). Every tip sourced + independently fact-checked; the story must make clear which choice was the mistake.
-
-**Automatic channels (YouTube, always PRIVATE):** `xp channel new|topics|score|rate|next|mark|auth|upload|brief|list|schedule|due|release|plan` with `kenh/<id>/kenh.yaml` (niche, format, reference video, voice, music, rules, standing extra sources, schedule) and `kenh/<id>/chu_de.yaml` (topic states `de-xuat` proposed → `duyet` approved → `dang-lam` in production → `da-dang` uploaded | `can-xem` needs review | `loi` error | `bo` rejected). Uploads use the official YouTube Data API and are PRIVATE; only an explicit per-channel opt-in (`dang.tu_dong_cong_khai`) lets YouTube publish at a scheduled time. Production runs from any scheduler (Claude scheduled tasks, cron, Windows Task Scheduler) calling `xp channel due --claim` → make the video → `xp channel upload` → `xp channel release`. Never approve topics or make a video public on your own. `references/channels.md`.
-
-**Posting to TikTok / Facebook / Instagram — `xp social` (optional, bring your own adapter):** mega-shot ships no posting backend. A target uses an adapter: `folder` (copies video + caption into an outbox folder your uploader watches — no network), `webhook` (multipart POST of video + JSON metadata to an endpoint YOU control: n8n, Zapier, Make, your own server; bearer token read from the env var named by `--token-env`), or your own module `tools/social_adapters/<name>.py` with `post(job, target, log) -> dict` (see `example_adapter.py`). `xp social target add <alias> --adapter folder --path <dir> | --adapter webhook --url <https…> [--token-env VAR] [--platform tiktok]` · `xp social target list|remove` · `xp social post videos/x --to a,b [--at "YYYY-MM-DD HH:MM"] [--caption …] [--title …]` queues it · `xp social run` sends due jobs (run it from cron / Task Scheduler every few minutes) · `xp social list [--all] | cancel <job> | retry <job>`. Caption: `out/caption_<platform>.txt` (first line = title) if present, else the Caption block of `out/dang_bai_mxh.md`. Exports over 280 MB get an `_mxh.mp4` copy (~12 Mbps). Targets live in `.mega-shot/social/targets.json` (no secrets in it); queue `.mega-shot/social/hang_doi.json` (states `cho` waiting, `da-gui` sent, `loi` failed, `huy` cancelled, `qua-gio` missed). Consent-only clips (`tu_xac_nhan`) are refused. Posts are usually PUBLIC — **confirm with the account owner before the first post to each new account**.
-
-**Disk clean-up — `xp cleanup`:** dry run listing video folders that are fully published (every social job sent / channel topic uploaded); `xp cleanup --delete` copies their text files (script, research, licences, captions) to `kenh/<id>/da_dang/<name>/` and deletes the folder. Folders with anything pending/failed, a `.giu` file, or edits in the last hour are kept; log `.mega-shot/don_dep.jsonl`; `MS_KHONG_DON=1` disables the automatic run after `xp social run` / `xp channel upload`.
-
-**Studio (local dashboard):** `xp studio` → http://127.0.0.1:3901. Shows every video/series and channel, runs steps with one click (one-at-a-time job queue), edits scene lines (keeps YAML comments), picks footage options visually, plays results, copies YouTube description/chapters. State is read from files, so it always matches the CLI. Local only — never expose its port or add tunnels/remote command endpoints. Code: `tools/studio.py` + `tools/studio.html`; style-picker previews in `references/previews/` (rebuild: `uv run --with pillow python tools/build_previews.py`).
-
-## Project data — `<project>/.mega-shot/`
-
-- `voices/<sample>/ref.wav` + `ref.txt`: voice sample ≤ 10 s with an exact transcript.
-- `music/`, `sfx/` (Kenney packs, `tu-nhien/` natural sounds), `assets/` + `GIAY_PHEP.md` (licence/credit log for publishing).
-- `models/` (BiRefNet for cut-outs), `fonts/` (Be Vietnam Pro, Oswald), `models3d/` (your 3D library), `tools/` (portable Blender — xp finds it, or set `MS_BLENDER` —, HyperFrames, instrument samples).
-- `chinh_sach.json`: auto-download policy (allowed sources, licences, MB limit per video). `keys.env`: legacy key file (prefer `<project>/.env`). `youtube/`: OAuth client + per-channel tokens. Never print or share any of these secrets.
-
-## video.yaml
+## video.yaml (compact)
 
 ```yaml
-name: video-name           # ten
-format: 9x16               # khung: 9x16 | 16x9 | 1x1 → safe areas, font sizes, subtitle position
-language: en               # ngon_ngu: any language; zh/ja/th wrap by character
-loudness: -14              # do_to: target LUFS
-voice: { sample: documentarian, volume: 0.55, speed: 1.08, seed: 1234 }   # giong: { mau, am_luong, toc_do, seed }
-music: { file: <path>, volume: 0.6, duck: true }    # nhac: loops on its beat grid if shorter than the video; from/to = use only those seconds
-style: { kind: footage, subtitle_style: box, title_style: word-rise }      # phong_cach
-scenes:                    # canh
+name: video-name
+format: 9x16                 # 9x16 | 16x9 | 1x1
+language: en
+loudness: -14                # target LUFS
+voice: { sample: documentarian, volume: 0.55, speed: 1.08 }
+music: { file: <path>, volume: 0.6, duck: true }
+style: { kind: footage, subtitle_style: box, title_style: word-rise }
+scenes:
   - id: opening
-    narration: Spoken line.            # loi — numbers may be digits or words
-    subtitle: On-screen **keyword** line.   # phu_de
-    title: Hook title                  # chu
-    search: [{ query: "deep sea anglerfish" }]   # tim: [{ q }]
-    # optional: gap/pause/extra (seconds), transition: fade|cut|tu-xu-ly, transition_length,
-    # blender: canh/x.py, image: { file: "…", description }, and any custom key (read in film.html via c.data.<internal key>)
-publish: { titles: ["…"], hook: "…", tags: [...] }  # dang_bai
+    narration: Spoken line.
+    subtitle: On-screen **keyword** line.
+    title: Hook title
+    search: [{ query: "deep sea anglerfish" }]
+publish: { titles: ["…"], hook: "…", tags: [...] }
 ```
 
-Strings that look like numbers (`10_1980`, `2015`) must be quoted.
+Quote strings that look like numbers (`"2015"`). Full key table: [docs/yaml-reference.md](docs/yaml-reference.md);
+English ↔ internal names: [references/glossary.md](references/glossary.md); full example + `film.html` API:
+[references/workflow-details.md](references/workflow-details.md).
 
-## film.html
+## Where to read more
 
-```html
-<script src="/ms/core/util.js"></script><script src="/ms/core/overlay.js"></script><script src="/ms/core/film.js"></script>
-<!-- per backend: /ms/core/layers.js (image sequences) · /ms/core/stills.js (stills, shots) · module /ms/backends/three/ms3d.js -->
-<script>
-MS.film({ scenes: { '<id>': { draw(x, c) { … } }, '*': { … } }, overlay(x, c) { … }, prepare: async TL => { … } });
-</script>
-```
-
-`c`: `t`, `lt` (local time), `D` (scene duration), `q` (0→1 during the incoming transition), `vt`/`vdur` (seconds since the line started, line duration), `data` (the scene's YAML keys, internal names: `c.data.chu`, `c.data.loi`…), `prev`, `W`, `H`.
-Library: `MS.subtitle · header · tag · chip · words · grain · vignette · topShade · letterbox · wrap · seq · still · still25 · shots · morph · at · img`.
-Labels synced to narration: `MS.tag(x, text, ax, ay, (c.vt - c.vdur * 0.4) / .5, { slot: k, warn })`.
-
-## Rules for the AI
-
-- **Ask the style first** (Step 0) and the text styles in the same round; never decide silently.
-- **Ask before any download or install** (assets outside the approved policy, models, tools, music); log every licence (`giay_phep.json`, `GIAY_PHEP.md`, `MUSIC_LICENSES.md`). Asset sources must allow commercial use; credit what needs credit.
-- **Never print, paste or commit API keys/tokens**; never type passwords — the user signs in themselves (`xp channel auth`).
-- **Fact-check BEFORE narration** with an independent agent; every number on screen has a source in `nghien_cuu.md`.
-- **English SRT for every YouTube video**, delivered with the video.
-- **Nothing goes public without the owner:** channel uploads are private; ask before the first `xp social` post to a new account.
-- Watching other videos in the browser is view-only: pause, mute and stop them when done; never download them outside `xp clip`'s licence gate.
-
-## Lessons learned
-
-- Visuals must always move a little (the checker flags stills ≥ 4 s).
-- Text on bright backgrounds: `MS.header` with a backing, or `topShade: true`. Several labels in one scene: `slot` 0, 1, 2 so they never overlap.
-- Glow blows out easily; glossy floors mirror the HDRI as grey patches — check the brightest frame.
-- 3D: rotate bones with `reach/aimBone`, never by adding Euler angles. Blender: far enough `clip_end`, sun from the side. Before modelling (characters, props, scenery), read 1–3 guides from the table in `references/blender/README.md`, build with the `msb_lib` kit, and look at a draft render before the final.
-- **Never squeeze the upload file into 30 MB** (1.9 Mbps at 1080×1920 = blocky). Upload the high-quality file; send `_xem_thu.mp4` to phones.
-- 1080p landscape footage cropped to vertical needs 1.8× upscaling → soft: prefer vertical / 1440p / 4K clips (the search scores this).
-- Narration must be dense and deep (≥ 40 % of scenes explain "why", every big number gets a comparison).
-- Subtitles live in the lower area (never centred on screen), except the story/medical `giua` style.
-- A scene is a sequence of CAMERA SHOTS in `search` order (video and stills interleaved, time split evenly; `giay_phep.json` → `shots`). A still held > 6.5 s is split into 2–4 angles: wide → close on the most detailed area → close on another area → pull back. Stills whose aspect ratio differs a lot from the frame (portraits, coins, maps) are shown whole over a blurred copy. Long scenes should have ≥ 2 sources.
-- Candidates sharing no keyword with the query are heavily penalized; the log says "có thể lạc đề" (*possibly off-topic*) → check `*_phuong_an.jpg`. Pixabay queries work best generic + place name ("jerusalem old city"); archival images work best with specific artifact/event names ("Tel Dan Stele"). Pixabay may simply not have real footage of some subjects (e.g. specific animals) — then pin a good still with `pick`. Check tags/`giay_phep.json` after `xp assets`.
-- Multi-episode series: clips used in an EARLIER episode are avoided automatically. Pixabay photos via the API are ≤ 1280 px (sharpness is scored on the real download).
-- `pick: <Wikimedia page id>` that the keyword search did not return is fetched directly by id — still compare `giay_phep.json` ids with `pick`. News-template captions (`caption`) follow the shot's photo id (`id`, `id~2`), not the angle index.
-- Wikimedia (only when allowed for a video via `extra_sources`, or for a channel): only originals ≤ 3840 px or the standard 3840/1920 px thumbnails, ≥ 1.5 s between calls — non-standard sizes get HTTP 429. Quick lookup: `timkiem.wikimedia(q, 'anh')`, then `pick: <id>`.
-- **Voice per language:** use a sample native to the video's language (English: `documentarian`, `storyteller`, `anchor`…). Transliterated hyphenated names may be mispronounced → write `narration` the way it should sound and keep the standard spelling in `subtitle`; test unusual names before running a whole series.
-- **VoiceStudio runs headless:** `xp narrate` / `xp voice add` / `xp music check` start its backend in the background (`python -m uvicorn main:app --app-dir backend --port 3900` from the runtime the app installed, with the app's env, so voices, profiles and models are shared). All calls are serialized through `.mega-shot/voicestudio.lock`; still run series ONE AFTER ANOTHER (one GPU). Hung (port 3900 silent, GPU 0 %): `xp voicestudio restart` (narrate also restarts a hung backend itself). Don't open the app window while the headless backend runs (both want port 3900) — `xp voicestudio stop` first.
-- **Narration speed on small GPUs:** a ~6 GB GPU cannot hold the voice model (~1.9 GB) and Whisper large-v3 together, so `xp narrate` only SYNTHESIZES with VoiceStudio; the listen-back and word timestamps run locally (`tools/nghe.py`, faster-whisper `small`, CPU int8, ~6 s per 10 s line), and the backend is restarted if the voice model bloats past 3.5 GB. `MS_ASR=voicestudio` restores the old path; `MS_ASR_MODEL=medium` = more accurate checks (~1.5 GB download).
-- **Narration hygiene:** VoiceStudio `denoise` hard-gates pauses (chopped sentence ends), so `xp narrate` sends `denoise=false`, applies a mild ffmpeg `afftdn`, drops a stray first word/click, shortens dead air > 0.42 s, and re-synthesizes a line whose last syllable is cut. The other cause of "breath"/noise at line ends is a bad clone sample (music bed, spliced segments, clipped end): run **`xp voice check`** and never use a flagged voice.
-- **Render speed:** `xp render` encodes H.264 in the browser (WebCodecs, ~55 fps with a GPU) and keeps a `.h264` sidecar so `xp series assemble` joins episodes and `xp export` stream-copies; fallback JPEG→x264 automatically (`MS_ENCODER=x264` forces it). `voice.num_step: 16` (default; 8 = fast drafts). Never use ffmpeg `-shortest` with raw `.h264` input (drops audio). `references/performance.md`.
-- A numeric title (`title: 1099`) is coerced to a string; titles over busy backgrounds get a dark box by default (`title_box: false` disables it) and fade out after ~6.5 s (`title_hold: <seconds>`).
-- **Platform length limits:** Facebook Reels via API take ~90 s, TikTok keeps longer videos — post long vertical videos to Facebook as a normal page video (your adapter decides; `xp social` passes the duration).
-- **Looping background music:** a track shorter than the video is looped on its beat grid (restart on the first beat of the steady groove, cut 2 beats before the last strong beat so the outro is never used, 4-beat crossfade; log "nhạc lặp khớp phách"). Explicit `music.from/to` or a composed `music.score` bypass it.
-- **Long YouTube videos (16:9) have NO background music** by default — `xp mix` drops `music` for 16:9 unless `music.keep: true`. Documentary sound = voice + quiet bed (`sfx.ambience: duoi-nuoc | "tu-nhien:<name>"`, `sfx.ambience_level`) + REAL animal/nature sounds placed with scene `sounds:` only when the scene shows them; `sfx.auto: false` turns off whoosh/boom/riser/tick. Add natural sounds: `xp sfx add <file> --name … --license … --source …` → `.mega-shot/sfx/tu-nhien/` (licence logged), use `tu-nhien:<name>`. Legal sources beyond the policy (NOAA, NASA, Freesound CC0…) are fine with the licence logged; never rip audio from YouTube/TikTok.
-- **Numbers in Vietnamese narration** (Vietnamese-language videos only): `xp narrate` passes every line through `tools/doc_so.py`, which spells digits the Vietnamese way ("." thousands, "," decimal; e.g. `2.050` → "hai ngàn không trăm năm mươi", `17/10/2026` → "mười bảy tháng mười năm…") because the voice model misreads raw digits and dates. Options `voice.numbers: { nghin: nghìn|ngàn, linh: linh|lẻ, tu: tư|bốn, phay }`, pronunciation dictionary `voice.pronounce: { INSEE: "in xê" }`. Some cloned voices garble "nghìn" or drop a lowercase "phẩy" (decimal comma) — the defaults ("ngàn", capitalised "Phẩy") read reliably. Every spoken number is checked on its own; a misread number fails the line and other seeds are tried.
-
-## Glossary
-
-**Commands (`xp …`)** — English names; old Vietnamese names (last column) still work.
-
-| Command | What it does | Old name |
-|---|---|---|
-| `setup` | check prerequisites, fix what is safe, list what needs the user (`--install`, `--policy`, `--json`, `--quick`, `--no-launch`) — run first | `caidat` |
-| `new <name>` | new video from a template (`--format 9x16\|16x9\|1x1`, `--template footage\|blank\|threejs\|blender\|ai-image\|manifesto\|medical\|news\|story\|philosophy`) | `moi` |
-| `check script` | score the script before narration | `kiemtra kichban` |
-| `narrate` | narration per scene (`--redo <ids>`, `--import-from <dir>` recorded audio) | `giong` |
-| `timeline` | rebuild the timeline without generating voice | `mocthoigian` |
-| `assets [scene…]` | search, score, download and cut footage/images | `timtainguyen` |
-| `download polyhaven\|url <id>` | one asset + licence log (`--resolution`, `--name`, `--license`, `--source`) | `tainguyen` |
-| `art [scene…]` | render `huashu:` scenes timed to the narration (`--redo`) | — |
-| `prompts` / `images` | write AI image prompts / import AI images | `loinhac` / `anh` |
-| `blender [scene…]` | Blender scenes (`--only-frame N`, `--draft`, `--redo`, `--from`) | — |
-| `3d <script.py>` | one Blender still from a kit script (`--out`, `--samples`, `--size WxH`, `--draft`); styles anime-cel/do-choi/low-poly/noir/kinh-di | — |
-| `preview` | preview frames + contact sheet (`--at 5,12,30`) | `thu` |
-| `nhac` | perform the video's ABC score (`music.score`) on real instrument samples → `build/nhac_soan.wav` | — |
-| `hf [scene…]` | render `hf:` HyperFrames scenes → `build/layers_hf/` (`--redo`) | — |
-| `vetinh <name>` | real satellite plates for a place (`--center`, `--km`, `--before`, `--to`) | — |
-| `clip <link>` | licence-checked download + analysis of an online video → ready `search` entries (`--consent`, `--name`, `--no-words`) | — |
-| `taitao <image>` | analyse and rebuild an image sharper/cleaner/larger (`--scale`) | — |
-| `grade [scene…]` | colour-match footage shots + look (`--force`) | — |
-| `mix` | mix voice, music, SFX | `am` |
-| `review` | dropped words, subtitles vs speech, text overflowing the frame, the first 3 seconds, on-screen reading time — BEFORE rendering (`--skip-read`) | `soat` |
-| `cast-design new\|draw\|score\|cast\|lock\|yaml\|list` | AI design loop for code-drawn 2D characters (`references/characters-ai-loop.md`) | `nhanvat` |
-| `redraw phan-tich\|ve\|doi-mau\|mo-rong\|rig` | redraw a flat illustration as SVG, recolour, extend, cut-out rig (`references/ve-lai.md`) | `ve-lai` |
-| `pose-editor mo\|them\|soat\|ds\|xoa` | FK pose & clip editor + shared clip library (`references/dung-dang.md`) | `dung-dang` |
-| `render` | per-scene render with cache (`--scene id…`, `--full`) | — |
-| `export` | upload file + phone preview + publishing package (`--limit 29`) | `xuat` |
-| `check` | quality check of the export (+ cut self-check) | `kiemtra` |
-| `all` | narrate → mix → render → export → check | `tatca` |
-| `series new\|run\|assemble` | multi-episode series (`--episodes N`, `--only tap-03`, `--steps narrate,assets,blender,mix,render`, `--redo`) | `loat moi\|chay\|ghep` |
-| `thumbnail [new\|…]` | YouTube thumbnails | `anhbia` |
-| `model new\|check\|list` | reusable 3D models rebuilt from a reference image (`--from pixabay:<id>`, `--nguoi`, `--height`) | — |
-| `publish` | publishing package: titles, description, tags, hashtags, captions, credits | `dangbai` |
-| `subtitles` | caption files: source language + **English always** (+ `--langs ja,es`); untranslated → `<lang>.todo.json` (`--status` exits 3 if missing/stale) | — |
-| `voicestudio start\|stop\|restart\|status` | the narration API headless (`--gui` opens the app); log `.mega-shot/voicestudio/backend.log` | — |
-| `voice add\|list\|check` | clone a voice from an audio/video file (`--name`, `--consent`, `--lang`, `--max`, `--no-app`, `--archetype`) | — |
-| `music add\|list\|brief\|check` | background music (`--start`, `--duration`, `--license`, `--use`, `--phone`) | — |
-| `sfx kenney list\|add <pack…>\|all · sfx add · sfx search · sfx list` | sound library: kenney.nl CC0 packs → `.mega-shot/sfx/kenney/<pack>/`; natural sounds; use `sfx: { replace: { bum, tich, dang, bot, vut: "kenney:<pack>/<file>" } }` and scene `sounds: [{ name, at_word \| at, level }]` | — |
-| `channel …` | automatic YouTube channels (see above) | — |
-| `social …` | posting through your own adapters (see above) | — |
-| `don` | free disk after publishing (`--xoa` = really delete) | — |
-| `studio` | local dashboard (`--port 3901`, `--open`) | — |
-| `viral "<topic>"` | OPTIONAL viral research → `viral.md`, `viral_phan_tich.md` (`--q`, `--format`, `--lang`, `--region`, `--days`, `--n`) | — |
-| `text-styles` | GIF previews of subtitle/title styles (`--only`, `--width`, `--fps`) | — |
-| `character demo` | code-drawn character previews (`--still t`) | — |
-
-**YAML keys** — English name (internal name): `name` (ten) · `format` (khung) · `language` (ngon_ngu) · `loudness` (do_to) · `voice` (giong: `sample` mau, `volume` am_luong, `speed` toc_do, `retry_below`, `attempts`, `numbers` doc_so, `pronounce` doc, `pitch` cao_do, `num_step`) · `music` (nhac: `file`, `volume`, `duck` tu_ha, `from`/`to` tu/den, `score` soan, `keep` giu) · `sfx` (`level` muc, `ambience` am_nen, `ambience_level`, `auto` tu_dong, `replace` thay) · `pacing` (nhip: `gap` dem, `pause` nghi, `tail` duoi) · `style` (phong_cach: `kind` kieu, `huashu`, `overlays` lop_phu, `subtitle_style`, `title_style`, `danger_words` tu_do, `ocean_hud` hud_bien) · `grade` (mau: `look`, `amount`, `balance`) · `extra_sources` (nguon_them) · `target_seconds` (muc_tieu_giay) · `final_episode` (tap_cuoi) · `publish` (dang_bai: `titles` tieu_de, `hook` moc, `topics` noi_dung, `drama` kich_tinh, `trust` cam_ket, `tags` tag, `caption`) · `characters` (nhan_vat) · `news` (tin) · `story` (truyen).
-Scenes (`scenes` / canh): `narration` (loi) · `subtitle` (phu_de) · `title` / `title_box` / `title_hold` (chu / chu_nen / chu_giu) · `labels` (nhan: `text`, `point`, `at`, `warning`) · `graphic` (do_hoa: `kind`, `items`, `label`, `value`, `unit`, `ratio`, `position`) · `year` (nam) · `search` (tim: `query` q, `type` loai video/anh=image, `source`, `pick` chon, `start` tu, `center_x` tam_x, `file` tep, `crop` cat, `author`, `license`, `parallax` 25d, `caption` chu_thich) · `transition` / `transition_length` (chuyen / chuyen_dai) · `reveal` (tiet_lo) · `fade_to_dark` / `darkness` (toi_dan / toi_dan_den) · `filter` (loc) · `gap` / `pause` / `extra` (dem / nghi / them) · `image` (anh: `file`, `description`) · `depth` (do_sau) · `sounds` (am) · `zoom0` / `zoom` / `drift` (troi) / `focus` (tam) · `speaker` (ai) · `chapter` (chuong) · `quote` (trich) · `punchline` (chot) · `body_clock` (dong_ho) · `set3d` (canh3d) · `question` (hoi) · `source_note` (nguon).
-
-**Series (`loat.yaml`)**: `title` (tieu_de) · `tagline` (mo_ta) · `intro` (gioi_thieu, description paragraph) · `references` (tham_khao) · `hashtags` · `credit_overrides` (ghi_cong_sua: `<asset id>: "Author"`) · `opening` (mo_dau: `length`, `folder` narrated teaser) · `chapter_card` (the_chuong) · `end_card` (ket) · `episodes` (tap: `folder`, `title`).
-
-**Thumbnails (`anh_bia.yaml`, Vietnamese keys only)**: `phien_ban` variants · `ten` name · `nguon` source image (or `video.mp4@seconds`) · `chu` text lines (`*` accent box, `^` accent colour) · `bo_cuc` layout (`trai` left / `phai` right / `duoi` bottom) · `tach_nen` cut out subject · `lat` flip · `nhan` badge · `mau_nhan` accent colour · `kieu` style · `nen` background image · `tam_nen` background focus · `co` icon/flag · `cao` figure height · `x_chu_the` figure x.
-
-**Files**: `nghien_cuu.md` research notes · `giay_phep.json` asset/licence book (per video) · `GHI_CONG.md` credits · `tainguyen/` downloaded assets · `build/tim/` search candidates · `build/thu/` preview frames · `out/*_xem_thu.mp4` phone preview · `out/youtube_dang_bai.md` full publishing package · `out/dang_bai_mxh.md` TikTok/Reels caption · `out/mo_ta_youtube.md` YouTube description · `out/chuong_youtube.txt` chapters · `out/ghi_cong_day_du.md` full credits (pinned comment) · `tap-NN/` episode folders · `loat.yaml` series config · `anh_bia.yaml` thumbnail config.
-
-**Tools**: `setup.py` prerequisites · `keys.py` API keys · `yaml_keys.py` English YAML keys · `huashu.py` huashu-art-motion scenes · `library.py` voice/music library · `timkiem.py` asset search · `kichban.py` script checker · `loat.py` series · `anhbia.py` thumbnails · `dangbai.py` publishing package · `subtitles.py` captions · `kenh.py` channels · `social.py` posting adapters · `don.py` clean-up · `tachnen.py` background removal · `lop25d.py` 2.5D layers · `sfx.py` procedural sound effects · `engine/core/dohoa.js` graphics · `the.html` title/chapter cards.
+| Topic | File |
+|---|---|
+| Setup protocol, install layout, keys, prerequisites | [references/setup.md](references/setup.md) |
+| Full workflow, fix-only-what-broke, cut self-check, project data, film.html, general lessons | [references/workflow-details.md](references/workflow-details.md) |
+| Script writing, research, languages | [references/script-and-voice.md](references/script-and-voice.md) |
+| Sensitive topics | [references/sensitive-topics.md](references/sensitive-topics.md) |
+| Voice cloning, VoiceStudio, narration hygiene, Vietnamese numbers | [references/voice.md](references/voice.md) |
+| Music search/check, composing, mixing, SFX, 16:9 sound rules | [references/music.md](references/music.md) |
+| Visual styles menu and Step 0 question | [references/styles.md](references/styles.md) |
+| Subtitle and title text styles | [references/text-styles.md](references/text-styles.md) |
+| Choosing a visual backend | [references/visual-backends.md](references/visual-backends.md) |
+| Footage, own files, smart crop, effects, colour grading, `xp clip`, asset lessons | [references/footage.md](references/footage.md) |
+| News graphics (HyperFrames), satellite scenes, motion library | [references/news.md](references/news.md) |
+| Evidence-film styles | [references/evidence/README.md](references/evidence/README.md) |
+| Motion languages and techniques | [references/chuyen-dong/README.md](references/chuyen-dong/README.md) |
+| Story films and code-drawn characters | [references/story.md](references/story.md), [references/story/README.md](references/story/README.md) |
+| Cartoon characters (puppet.js) | [references/characters.md](references/characters.md) |
+| Character AI design loop (`xp cast-design`) | [references/characters-ai-loop.md](references/characters-ai-loop.md) |
+| Redraw an illustration (`xp redraw`) | [references/ve-lai.md](references/ve-lai.md) |
+| Pose & clip editor (`xp pose-editor`) | [references/dung-dang.md](references/dung-dang.md) |
+| Manifesto template | [references/manifesto.md](references/manifesto.md) |
+| Series, thumbnails, 3D kit, people, medical — summaries | [references/more-tools.md](references/more-tools.md) |
+| Long multi-episode series | [references/long-series.md](references/long-series.md) |
+| YouTube thumbnails | [references/thumbnails.md](references/thumbnails.md) |
+| 3D quality kit and model library | [references/models3d.md](references/models3d.md) |
+| Blender modelling guides | [references/blender/README.md](references/blender/README.md) |
+| Medical 3D template | [references/medical3d.md](references/medical3d.md) |
+| Quality checks (preview, review, check, independent review) | [references/quality-checks.md](references/quality-checks.md) |
+| Publishing package and subtitles | [references/publishing.md](references/publishing.md) |
+| Automatic channels, social posting, clean-up, Studio | [references/automation.md](references/automation.md), [references/channels.md](references/channels.md) |
+| Viral research | [references/viral-research.md](references/viral-research.md) |
+| Performance and render speed | [references/performance.md](references/performance.md) |
+| Every command, YAML key, file and tool | [references/glossary.md](references/glossary.md) |

@@ -5,12 +5,17 @@ publish-ready video: researched script → cloned narration voice → visuals in
 music and sound effects → high-quality export + phone preview → automatic quality checks → titles, description,
 hashtags, chapters, subtitles (SRT) and thumbnails.
 
-It works two ways:
+**Works with your AI agent:** Claude Code · OpenAI Codex · Google Antigravity · Gemini CLI · Cursor — and any agent that
+reads `AGENTS.md`. It ships in the open [Agent Skills](https://agentskills.io) format, so one folder works everywhere:
 
-- **As a Claude Code skill** (recommended): just say what video you want — Claude researches, writes, builds and checks it for you
-  (behind the scenes it writes the video's script file, `video.yaml`, and runs the `xp` CLI).
-  Other coding agents (Codex, Cursor, Gemini CLI, …) can use it through [`AGENTS.md`](AGENTS.md).
-- **As a plain CLI**: write the script file (`video.yaml`) yourself and run `xp narrate → xp render → xp export`.
+```bash
+git clone https://github.com/stevenguyenbt/mega-shot ~/mega-shot
+~/mega-shot/xp agents install        # links the skill into every agent's skills folder (Windows: xp.cmd)
+```
+
+Then just say what video you want — the agent researches, writes, builds and checks it for you (behind the scenes it
+writes the video's script file, `video.yaml`, and runs the `xp` CLI). Prefer no AI? Write `video.yaml` yourself and run
+`xp narrate → xp render → xp export`. Per-agent notes: [docs/agents.md](docs/agents.md).
 
 ![12 visual styles](references/style-gallery.jpg)
 
@@ -85,26 +90,27 @@ Tested on Windows 11. macOS and Linux work for the core pipeline (setup handles 
 ## Install
 
 ```bash
-# A) as a personal Claude Code skill (available in every project)
-git clone https://github.com/stevenguyenbt/mega-shot ~/.claude/skills/mega-shot
-
-# B) or inside one project
-git clone https://github.com/stevenguyenbt/mega-shot <project>/.claude/skills/mega-shot
+git clone https://github.com/stevenguyenbt/mega-shot ~/mega-shot
+~/mega-shot/xp agents install        # Claude Code, Codex, Antigravity, Gemini CLI, Cursor (Windows: xp.cmd)
 ```
+
+`xp agents install` links the folder into each agent's skills directory (`--for codex,antigravity` to pick agents,
+`--scope project` for one project only, which also writes a mega-shot block into that project's AGENTS.md / GEMINI.md /
+CLAUDE.md). Prefer the classic way? Cloning straight into `~/.claude/skills/mega-shot` or `~/.agents/skills/mega-shot`
+works too. Details per agent (sandbox, approvals): [docs/agents.md](docs/agents.md).
 
 Then, **from your project folder** (any empty folder works — it will hold `.mega-shot/` and `videos/`):
 
 ```bash
-~/.claude/skills/mega-shot/xp setup          # Windows: %USERPROFILE%\.claude\skills\mega-shot\xp.cmd setup
+~/mega-shot/xp setup                 # Windows: %USERPROFILE%\mega-shot\xp.cmd setup
 ```
 
 `xp setup` checks everything, starts VoiceStudio if it is installed, and prints **NEEDS YOUR INPUT** — the items you
 decide on. Nothing large is installed without your approval: run `xp setup --install chromium,fonts` (etc.) for what
 you want, and `xp setup --policy` once you agree to automatic licensed downloads. Put your keys in `.env`
-(copy [`.env.example`](.env.example)). Tip: add `alias xp=~/.claude/skills/mega-shot/xp` to your shell profile.
+(copy [`.env.example`](.env.example)). Tip: add `alias xp=~/mega-shot/xp` to your shell profile.
 
-With Claude Code, just open the project and ask for a video — copy [`docs/CLAUDE.project.md`](docs/CLAUDE.project.md)
-into your project's `CLAUDE.md` so the AI always runs setup and asks the style first.
+Open the project in your agent and ask for a video — it runs setup and asks you the style first.
 
 ## Your first video in 5 minutes
 

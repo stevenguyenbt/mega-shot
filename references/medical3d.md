@@ -45,7 +45,7 @@ Self-made CC0 body sounds (`tools/am_co_the.py`, already in `.mega-shot/sfx/tu-n
 
 ## Content rules (health)
 
-- Every number from NHS / Mayo Clinic / MSD Manual / EFSA / FDA / NCBI / peer-reviewed papers, written into `nghien_cuu.md` with URL + short quote; an **independent agent fact-checks the script before narration**.
+- Every number from NHS / Mayo Clinic / MSD Manual / EFSA / FDA / NCBI / peer-reviewed papers, written into `nghien_cuu.md` with URL + short quote; an **independent fact-check of the script before narration** (a second agent or reviewer if you can run one; otherwise a separate careful pass yourself).
 - No treatment advice, no health promises, no "cures/burns/detox"; hedge variable effects ("in many people", "may"). Ranges, not single precise times, when the literature gives ranges.
 - Caption ends with a disclaimer such as "For information only — not a substitute for medical advice." and lists sources.
 - Put the clock only on sourced time marks — leave `dong_ho` out where the literature gives no timing.

@@ -103,14 +103,15 @@ mega-shot does not install a scheduler for channels. Use whatever you have; the 
    `xp channel upload <id> videos/<x> --topic <topic>` — or `xp channel mark … can-xem|loi --note …` if a gate failed.
 3. `xp channel release`.
 
-Step 2 needs an AI agent (it writes and fact-checks the script), so the usual choice is a **scheduled Claude Code
-run**. Options:
+Step 2 needs an AI agent (it writes and fact-checks the script), so the usual choice is a **scheduled run of your
+coding agent** in headless/non-interactive mode (e.g. Claude Code `claude -p`, Codex `codex exec`, Gemini CLI
+`gemini -p`). Options:
 
-- **Claude scheduled tasks** (Claude desktop app): an hourly task whose prompt is the three steps above, plus a weekly
+- **Your agent's scheduled tasks** (if your agent app has them): an hourly task whose prompt is the three steps above, plus a weekly
   task that proposes ~7 new topics per channel (`xp channel topics <id> --add …`) for a human to approve. If the app is
   closed at the scheduled time, the task runs when it is opened again.
-- **cron** (Linux/macOS): e.g. `13 * * * * cd /path/to/project && claude -p "$(cat channel-job.md)"`.
-- **Windows Task Scheduler**: an hourly trigger that runs `claude -p …` in the project folder.
+- **cron** (Linux/macOS): e.g. `13 * * * * cd /path/to/project && <agent-cli> -p "$(cat channel-job.md)"` (replace `<agent-cli> -p` with your agent's headless command).
+- **Windows Task Scheduler**: an hourly trigger that runs your agent's headless command in the project folder.
 
 Waking up hourly and letting `xp channel due` decide is simpler than one scheduler entry per channel.
 

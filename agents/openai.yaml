@@ -1,0 +1,9 @@
+# Codex / ChatGPT app metadata for this skill (optional file of the Agent Skills layout; other agents ignore it).
+interface:
+  display_name: "mega-shot · video studio"
+  short_description: "Type an idea, get a finished video: research, script, voice, visuals, subtitles, music, thumbnails, QA."
+  brand_color: "#FFC46A"
+  default_prompt: "Use $mega-shot to make a 60-second vertical video about "
+
+policy:
+  allow_implicit_invocation: true

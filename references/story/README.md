@@ -1,7 +1,7 @@
 # Story films — "What if…" survival / story-driven explainers (template `truyen`)
 
 Learned from a 6-minute reference film (flat 2D, "If the zombie apocalypse starts while you're on a farm…", 150+ shots).
-The knowledge is real; the story is the delivery vehicle. Every tip must be true and sourced (`nghien_cuu.md`, fact-check agent).
+The knowledge is real; the story is the delivery vehicle. Every tip must be true and sourced (`nghien_cuu.md`, independent fact-check).
 
 ## 1. Structure (75–100 s pilot; scale the same beats to 5–6 min)
 
@@ -105,5 +105,5 @@ Staging tips: reach IK only works within arm length (~190 px at scale 1) — put
 
 ## 5. Checks before voice
 
-`xp check script` (story mode when `truyen:` is present) + an independent agent: hook in the first line; ≥ 3 numbers; a rule card per tip;
+`xp check script` (story mode when `truyen:` is present) + an independent review (a second agent or reviewer if you can run one; otherwise a separate careful pass yourself): hook in the first line; ≥ 3 numbers; a rule card per tip;
 a twist by 30 %; countdown; theme line; cliffhanger; every tip sourced; no dangerous advice; dialogue 35–50 % with ≥ 2 exchanges; every speaker visible in a shot of their line.

@@ -11,7 +11,7 @@ mkdir my-videos && cd my-videos
 xp setup                                   # read NEEDS YOUR INPUT
 xp setup --install chromium,fonts,voicestudio
 xp setup --policy                          # allow licensed auto-downloads (Pixabay, Pexels, NASA, Poly Haven, ambientCG; ≤ 1 GB/video)
-cp ~/.claude/skills/mega-shot/.env.example .env   # add PIXABAY_API_KEY (free)
+cp ~/mega-shot/.env.example .env   # add PIXABAY_API_KEY (free)
 xp voice add --archetype documentarian     # built-in English narrator (or: xp voice add me.mp4 --name me --consent)
 ```
 

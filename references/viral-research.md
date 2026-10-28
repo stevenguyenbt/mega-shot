@@ -1,6 +1,6 @@
 # Viral research (optional step)
 
-Before writing the script, you can **offer** the user a quick study of what already goes viral on their topic. Do it only if the user agrees; it is never required. Ask with `AskUserQuestion`: "Run viral research first? (≈ 3–5 min)".
+Before writing the script, you can **offer** the user a quick study of what already goes viral on their topic. Do it only if the user agrees; it is never required. Ask the user (one question; use your agent's question/choice tool if it has one): "Run viral research first? (≈ 3–5 min)".
 
 ## What it does
 
@@ -13,14 +13,14 @@ Before writing the script, you can **offer** the user a quick study of what alre
    - Summarises the leading group: median length, title formulas (% with numbers, questions, ':'/'|', emoji, CAPS), repeated title words and tags, and the most common upload hours (local time).
    - Writes `viral.md` (report + links), `build/viral/<slug>.json`, and a `viral_phan_tich.md` template. Outside a video folder, the files go to `.mega-shot/viral/<slug>/`.
    - Needs `YOUTUBE_API_KEY` (environment, project `.env`, or `.mega-shot/keys.env`). The key is free: Google Cloud Console → enable "YouTube Data API v3" → Credentials → API key. The free quota is ~10,000 units/day, and one query costs ≈ 102 units.
-   - Without a key, it still writes the report skeleton with search links. You then research with WebSearch and the browser pane.
-2. **TikTok has no public search API.** Use WebSearch (`site:tiktok.com <topic>`) and the in-app browser to look at 2–3 popular TikToks. View only.
-3. **Watch the top 3–5 videos in the browser pane (view only).** Fill in `viral_phan_tich.md` per video:
+   - Without a key, it still writes the report skeleton with search links. You then search the web and open pages yourself, if your agent can.
+2. **TikTok has no public search API.** Search the web if your agent can (`site:tiktok.com <topic>`) and open a browser, if available, to look at 2–3 popular TikToks. View only.
+3. **Watch the top 3–5 videos in a browser if your agent can (view only; pause and mute when done).** Fill in `viral_phan_tich.md` per video:
    - hook in 0–3 s, first frame;
    - cuts in the first 10 s, on-screen text style;
    - voice, music, structure, retention lines;
    - ending/CTA, title and thumbnail formula.
-4. Extract **3–5 shared viral factors**. Propose **2–3 directions** in a table: angle, opening hook line, title, length, visual style. Ask the user to pick one (or none) with `AskUserQuestion`.
+4. Extract **3–5 shared viral factors**. Propose **2–3 directions** in a table: angle, opening hook line, title, length, visual style. Ask the user to pick one (or none).
 5. Continue the normal workflow (style → research → script). Put the chosen hook and structure into the script, and the title formula into the `dang_bai` block.
 
 ## Rules (inspiration, not imitation)
