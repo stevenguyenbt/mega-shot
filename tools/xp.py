@@ -747,15 +747,85 @@ TEXT_HOOK = """() => { if (window.__txtHook) return; window.__txtHook = true; wi
       try { if (this.canvas.width === W && this.canvas.height === H && this.globalAlpha > .15 && String(s).trim()) {
         const m = this.measureText(s), w = r[0] ? Math.min(m.width, r[0]) : m.width, al = this.textAlign, T = this.getTransform();
         let x0 = al === 'center' ? x - w / 2 : (al === 'right' || al === 'end') ? x - w : x; const X0 = T.a * x0 + T.c * y + T.e, X1 = T.a * (x0 + w) + T.c * y + T.e;
-        if (X0 < -2 || X1 > W + 2) window.__txt.push([String(s).slice(0, 60), Math.round(X0), Math.round(X1)]); } } catch (e) {}
+        if (X0 < -2 || X1 > W + 2) window.__txt.push([String(s).slice(0, 60), Math.round(X0), Math.round(X1)]);
+        if (window.__all) window.__all.push([String(s).trim().slice(0, 160), Math.round(T.b * x0 + T.d * y + T.f)]); } } catch (e) {}
       return orig.call(this, s, x, y, ...r); }; } }"""
+
+# frame statistics of the film canvas right after render(t): mean luma, contrast and a 16×16 luma grid (for "is anything there / is it moving")
+FRAME_STATS = """async (t) => { await render(t); const c = document.getElementById('c'), k = document.createElement('canvas'); k.width = k.height = 16;
+  const x = k.getContext('2d'); x.drawImage(c, 0, 0, 16, 16); const d = x.getImageData(0, 0, 16, 16).data, g = [];
+  for (let i = 0; i < d.length; i += 4) g.push((0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255);
+  const m = g.reduce((a, b) => a + b, 0) / g.length, sd = Math.sqrt(g.reduce((a, b) => a + (b - m) ** 2, 0) / g.length);
+  return { m, sd, g, jpg: c.toDataURL('image/jpeg', .8) }; }"""
+
+READ_RATE = {'vi': 3.2, 'en': 3.0, 'zh': 6.0, 'ja': 6.0, 'th': 5.0}   # words (or CJK/Thai characters) a viewer reads per second on screen
+
+def soat_mo_dau(pg, s, tl):
+    """The first 3 seconds (idea from chaojifeng-video-design "前三秒"): a scroller decides in ~3 s. Checks: the first spoken
+    word starts at once, the first sentence lands inside ~3 s, frame 0 is not empty/black, something is written on screen
+    by 1 s, and the picture changes in the first 3 s. Saves build/soat/mo_dau_<t>.jpg to look at."""
+    bad, info = [], {}
+    v = [sc['voice']['t0'] for sc in tl['scenes'] if sc.get('voice')]          # voice.t0 is absolute (timeline seconds)
+    if v:
+        info['giong_bat_dau'] = round(min(v), 2)
+        if min(v) > .6: bad.append(('0–3s', 'opening', f'voice starts at {min(v):.1f}s — the first 3 seconds are when viewers decide to scroll; start the hook line at once (≤ 0.5 s), cut `dem`/leading silence'))
+    subs = tl.get('subs') or []
+    if subs:
+        end = next((x['t1'] for x in subs if re.search(r'[.?!…。？！]["»”)]*$', x['s'].strip())), None) or subs[0]['t1']
+        info['cau_dau_xong'] = round(end, 2)
+        if end > 3.5: bad.append(('0–3s', 'opening', f'the first sentence ends at {end:.1f}s — the hook should land within ~3 s (split the first sentence, put the curious part first)'))
+    os.makedirs('build/soat', exist_ok=True); fr = {}; T0 = .2                  # .2 s: after the template's short fade-in from black (fadeIn .12)
+    for t in (T0, 1.0, 3.0):
+        if t >= tl['dur']: continue
+        pg.evaluate('() => { window.__all = []; }'); r = pg.evaluate(FRAME_STATS, t); r['txt'] = pg.evaluate('() => window.__all'); pg.evaluate('() => { window.__all = null; }')
+        open(f'build/soat/mo_dau_{t:.0f}s.jpg', 'wb').write(base64.b64decode(r.pop('jpg').split(',', 1)[1])); fr[t] = r
+    if T0 in fr and (fr[T0]['m'] < .04 or fr[T0]['sd'] < .02): bad.append(('0–3s', 'opening', f"the first frame is almost empty/dark (brightness {fr[T0]['m']:.0%}, contrast {fr[T0]['sd']:.2f}) — open on a picture with a subject, not on black"))
+    if fr and not any(x['txt'] for t, x in fr.items() if t <= 1.0): bad.append(('0–3s', 'opening', 'no text on screen in the first second — add `chu` (a hook title) to the first scene'))
+    if T0 in fr and 3.0 in fr:
+        d = sum(abs(a_ - b_) for a_, b_ in zip(fr[T0]['g'], fr[3.0]['g'])) / len(fr[T0]['g']); info['doi_hinh_3s'] = round(d, 3)
+        if d < .015: bad.append(('0–3s', 'opening', 'the picture at 0 s and at 3 s is almost identical — the first 3 seconds need clear motion or a cut'))
+    return bad, info
+
+def soat_doc_chu(pg, s, tl):
+    """Reading windows (idea from chaojifeng-video-design explainer_timing_audit, but measured on the real page): every
+    on-screen text that is NOT the karaoke subtitle (titles, labels, graphics, quotes) must stay up long enough to read:
+    ≥ 0.6 s + words / READ_RATE. Samples render(t) every 0.25 s (0.5 s for videos > 2 min)."""
+    lang = s.get('ngon_ngu', 'vi'); rate = READ_RATE.get(lang, 3.0); step = .25 if tl['dur'] <= 120 else .5
+    subs = tl.get('subs') or []; cjk = lang in ('zh', 'ja', 'th')
+    nsub = lambda t: ' '.join(norm(x['s']) for x in subs if x['t0'] - .4 <= t <= x['t1'] + .4)
+    seen = {}                                                                    # text → [[first t, last t], …] (one entry per appearance)
+    t = 0.0
+    while t < tl['dur']:
+        pg.evaluate('() => { window.__all = []; }'); pg.evaluate('async (t) => { await render(t); }', t)
+        sub = nsub(t)
+        for n in {norm(txt) for txt, _ in pg.evaluate('() => window.__all')}:
+            if len(n) < 3 or sum(ch.isdigit() for ch in n) >= len(n.replace(' ', '')) * .5: continue   # counters / years animate on purpose
+            if n in sub: continue                                                # the karaoke subtitle (read along with the voice)
+            iv = seen.setdefault(n, [])
+            if iv and t - iv[-1][1] <= step * 1.5: iv[-1][1] = t
+            else: iv.append([t, t])
+        t = round(t + step, 3)
+    pg.evaluate('() => { window.__all = null; }')
+    rows = sorted([[n, a_, b_] for n, iv in seen.items() for a_, b_ in iv], key=lambda r: (-len(r[0]), r[1]))
+    for r in list(rows):                                                         # typewriter / word-by-word reveal: a prefix shown just before the full text is that text
+        full = next((q for q in rows if q is not r and len(q[0]) > len(r[0]) and q[0].startswith(r[0]) and r[1] <= q[1] <= r[2] + step * 1.5), None)
+        if full: full[1] = min(full[1], r[1]); rows.remove(r)
+    bad = []
+    for n, t0, t1 in sorted(rows, key=lambda r: r[1]):
+        words = len(n.replace(' ', '')) if cjk else len(n.split())
+        if words < 3 or t1 + step >= tl['dur'] - .05: continue                  # short labels read at a glance; text held to the very end is fine
+        shown, need = t1 - t0 + step, .6 + words / rate
+        if shown < need * .8: bad.append((f'{t0:.1f}s', f'text «{n[:70]}» is shown only ~{shown:.1f}s, needs ~{need:.1f}s to read ({words} words) — hold it longer (`chu_giu`, `luc`) or shorten it'))
+    return bad[:12], len(rows)
 
 def cmd_soat(a):
     """xp review — review BEFORE rendering (cheap, minutes saved on long videos):
     1. voice: words of `loi` missing from the listen-back (dropped words / garbled names), per scene;
     2. subtitles: `phu_de` that says something different from what is spoken;
     3. on-screen text: every title/quote/subtitle drawn past the left/right edge of the frame (measured in the browser at
-       the middle of every subtitle cue and 1.5 s into every scene).
+       the middle of every subtitle cue and 1.5 s into every scene);
+    4. the first 3 seconds: voice starts at once, first sentence lands in ~3 s, frame 0 not empty, text by 1 s, picture moves;
+    5. reading time: titles/labels/graphics text (not the karaoke subtitle) held long enough to read (--skip-read to skip).
     Fix what it lists (xp narrate --redo <id>, edit phu_de/chu), then render — only changed scenes re-render."""
     s = load_spec(); tl = json.load(open('build/timeline.json', encoding='utf-8')); lang = s['ngon_ngu']; bad = []
     gk = {x['id']: x for x in (json.load(open('build/giong_kiemtra.json', encoding='utf-8')) if os.path.exists('build/giong_kiemtra.json') else [])}
@@ -781,11 +851,17 @@ def cmd_soat(a):
         pg.evaluate('() => { window.__txt = []; }'); pg.evaluate('async (t) => { await render(t); }', t)
         for txt, x0, x1 in pg.evaluate('() => window.__txt'):
             sc = next(x['id'] for x in reversed(tl['scenes']) if t >= x['t0']); over.setdefault((sc, txt), (t, x0, x1))
+    hook, hook_info = soat_mo_dau(pg, s, tl); bad += hook                       # 4. the first 3 seconds
+    n_doc = 0
+    if not getattr(a, 'skip_read', False):                                       # 5. reading windows of on-screen text
+        rd, n_doc = soat_doc_chu(pg, s, tl); bad += [(at, 'reading time', msg) for at, msg in rd]
     b.close(); pw.stop(); srv.shutdown()
     for (sc, txt), (t, x0, x1) in over.items(): bad.append((sc, 'text overflow', f'«{txt}» at {t:.1f}s drawn from x={x0} to {x1} (frame {FORMATS[s["khung"]][0]}px) — shorten it or wrap the line'))
     os.makedirs('build/soat', exist_ok=True)
-    L = ['# Review before render', '', f'{len(ts)} text moments · {len([c for c in s["canh"] if c.get("loi")])} spoken lines', '']
-    L += [f'- **{sid}** · {kind}: {msg}' for sid, kind, msg in bad] or ['✓ no voice / subtitle / text-overflow problems found']
+    L = ['# Review before render', '', f'{len(ts)} text moments · {len([c for c in s["canh"] if c.get("loi")])} spoken lines · {n_doc} on-screen texts timed for reading', '',
+         f"First 3 seconds: voice starts at {hook_info.get('giong_bat_dau', '?')}s · first sentence ends at {hook_info.get('cau_dau_xong', '?')}s · frames build/soat/mo_dau_0s.jpg, mo_dau_1s.jpg, mo_dau_3s.jpg", '']
+    L += [f'- **{sid}** · {kind}: {msg}' for sid, kind, msg in bad] or ['✓ no voice / subtitle / text-overflow / opening / reading-time problems found']
+    json.dump({'mo_dau': hook_info, 'viec': [{'cho': sid, 'loai': kind, 'loi': msg} for sid, kind, msg in bad]}, open('build/soat/bao_cao.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     open('build/soat/bao_cao.md', 'w', encoding='utf-8').write('\n'.join(L) + '\n')
     for sid, kind, msg in bad: log(f'⚠ {sid} · {kind}: {msg}')
     log(f'review: {len(ts)} text moments · {len(bad)} to fix' + ('' if bad else ' ✓') + ' · build/soat/bao_cao.md')
@@ -872,6 +948,38 @@ def cmd_kichban(a):
     for w in R['canh_bao']: log('⚠', w)
     if not R['canh_bao']: log('✓ script passes')
 
+DUYET_6 = [   # the director's six questions (adapted from chaojifeng-video-design review-and-revision.md) — each judged separately
+    ('Sound', 'Voice is clear, music/SFX never cover it, sound effects land on the right moment, start and end feel natural (no clipped words).', 'LISTEN to the whole video with ears/headphones — not just the LUFS number or the match %'),
+    ('Picture', 'Subject is clear, text is readable (no overflow, not covered, enough contrast), no black/burnt/jumpy frames at cuts.', 'look at the first frame, the busiest-text frame, the middle of every transition and the last frame'),
+    ('Look', 'Fonts, colours, materials, lighting and motion style match the chosen style (`phong_cach`) and the channel.', 'write a concrete reason, not just "nice/ugly"'),
+    ('Pacing', 'There is build → push → hit → rest; text stays up long enough to read; fast or loud is not the same as rhythm.', 'watch it in one go without skipping'),
+    ('Story', 'The first 3 seconds hook; every scene adds new information or feeling; there is a turn / a "why"; the ending lands.', 'retell the video in 2 sentences — if you cannot, the thread is loose'),
+    ('Accuracy', 'Numbers, names and years match the sources (`nghien_cuu.md`); graphics have correct proportions/meaning; effects serve the content and never hide the evidence.', 'check every number on screen against its source'),
+]
+
+def duyet_phim(vid, D, tl, R):
+    """build/duyet_phim.md — the review sheet the INDEPENDENT reviewer fills after `xp check`: six dimensions scored
+    separately with what was actually watched/heard as evidence. Automatic warnings are listed as hints, never as a pass."""
+    sc = json.load(open('build/soat/bao_cao.json', encoding='utf-8')) if os.path.exists('build/soat/bao_cao.json') else None
+    cuts = [round(x['t0'], 1) for x in tl['scenes'][1:]]
+    L = ['# Film review — the director\'s 6 questions', '', f'Video: `{vid}` · {D:.1f}s · {len(tl["scenes"])} scenes', '',
+         'The reviewer is NOT the person who made the video. Score every item separately /10 and write **which part you watched/heard** as evidence.',
+         'An item not really watched/heard is marked `not reviewed` — it never counts as a pass. Pass = every item ≥ 7 and average ≥ 8.', '',
+         '## Automatic hints (only to show where to look — they do not replace watching/listening)', '']
+    L += [f'- ⚠ {w}' for w in R['canh_bao']] or ['- ✓ `xp check` has no warnings']
+    if sc:
+        md = sc.get('mo_dau') or {}
+        L += [f"- First 3 seconds: voice starts {md.get('giong_bat_dau', '?')}s · first sentence ends {md.get('cau_dau_xong', '?')}s (frames `build/soat/mo_dau_*.jpg`)"]
+        L += [f"- ⚠ pre-render review · {x['cho']} · {x['loai']}: {x['loi']}" for x in sc.get('viec') or []]
+    else: L += ['- (`xp review` has not been run — no first-3-seconds / reading-time measurements)']
+    L += ['', f"Moments to watch closely: 0–3s · scene cuts {cuts[:12]}{' …' if len(cuts) > 12 else ''} · {max(0, D - 3):.1f}s–end", '',
+          '## Scores', '', '| # | Item | Score /10 | Watched/heard (evidence) | Problem (time) | Fix |', '|---|---|---|---|---|---|']
+    L += [f'| {i} | **{n}** | | | | |' for i, (n, _, _) in enumerate(DUYET_6, 1)]
+    L += ['', '### What each item checks', '']
+    L += [f'{i}. **{n}** — {q} *How to review: {how}.*' for i, (n, q, how) in enumerate(DUYET_6, 1)]
+    L += ['', '## Verdict', '', '- Average: ', '- Pass / Not yet: ', '- Fixes in order (scene/id · task · command, e.g. `xp narrate --redo <id>`, `xp render --scene <id>`): ', '']
+    open('build/duyet_phim.md', 'w', encoding='utf-8').write('\n'.join(L))
+
 def cmd_kiemtra(a):
     if getattr(a, 'loai', None) == 'kichban': return cmd_kichban(a)
     s = load_spec(); tl = json.load(open('build/timeline.json', encoding='utf-8')); name = s.get('ten', os.path.basename(os.getcwd()))
@@ -947,6 +1055,7 @@ def cmd_kiemtra(a):
         log(f"cut points: {len(kc)} · {len(bad)} to review · build/kiem_cat/tong.jpg")
     except Exception as e: log(f'⚠ could not run the cut-point check: {e}')
     json.dump(R, open('build/kiemtra.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    duyet_phim(vid, D, tl, R); log('6-question review sheet for an independent reviewer: build/duyet_phim.md')
     log(f"{vid} · {D:.1f}s · {R['dung_luong_mb']} MB · {R.get('do_to_lufs', '?')} LUFS")
     for w_ in R['canh_bao']: log('⚠', w_)
     if not R['canh_bao']: log('✓ no warnings')
@@ -1195,7 +1304,8 @@ def cmd_tatca(a):
 # ---------------------------------------------------------------- command line (English names; old Vietnamese names still accepted)
 LEGACY_CMD = {'moi': 'new', 'giong': 'narrate', 'tatca': 'all', 'mocthoigian': 'timeline', 'am': 'mix', 'thu': 'preview', 'xuat': 'export', 'kiemtra': 'check',
               'loat': 'series', 'anhbia': 'thumbnail', 'timtainguyen': 'assets', 'loinhac': 'prompts', 'anh': 'images', 'tainguyen': 'download', 'dangbai': 'publish', 'caidat': 'setup',
-              'nhac': 'compose', 'don': 'cleanup', 'vetinh': 'satellite', 'taitao': 'restore'}
+              'nhac': 'compose', 'don': 'cleanup', 'vetinh': 'satellite', 'taitao': 'restore',
+              'nhanvat': 'cast-design', 've-lai': 'redraw', 'dung-dang': 'pose-editor'}
 LEGACY_SUB = {'check': {'kichban': 'script'}, 'series': {'moi': 'new', 'chay': 'run', 'ghep': 'assemble'}, 'thumbnail': {'moi': 'new'}}
 LEGACY_FLAG = {'--khung': '--format', '--mau': '--template', '--nhap-tu': '--import-from', '--lam-lai': '--redo', '--trang': '--page', '--gioi-han': '--limit',
                '--so-tap': '--episodes', '--tap': '--only', '--buoc': '--steps', '--cong': '--port', '--mo': '--open', '--nhap': '--draft', '--tu': '--from',
@@ -1236,7 +1346,7 @@ def main():
     p.add_argument('--only-frame', dest='chi', type=int, help='render a single test frame'); p.set_defaults(f=cmd_blender)
     p = sp.add_parser('preview', help='render a few frames + contact sheet build/thu.jpg'); p.add_argument('--at', dest='t', help='times in seconds, e.g. 5,12,30'); p.add_argument('--page', dest='trang', default='film.html'); p.set_defaults(f=cmd_thu)
     sp.add_parser('mix', help='mix narration + music + sound effects → build/mix.wav').set_defaults(f=cmd_am)
-    p = sp.add_parser('review', aliases=['soat'], help='check voice (dropped words), subtitles vs speech and text overflowing the frame BEFORE rendering'); p.add_argument('--page', dest='trang', default='film.html'); p.set_defaults(f=cmd_soat)
+    p = sp.add_parser('review', aliases=['soat'], help='check voice (dropped words), subtitles vs speech, text overflowing the frame, the first 3 seconds and on-screen reading time BEFORE rendering'); p.add_argument('--page', dest='trang', default='film.html'); p.add_argument('--skip-read', action='store_true', help='skip the reading-time scan of on-screen text'); p.set_defaults(f=cmd_soat)
     p = sp.add_parser('render', help='render per scene (cached in build/doan/, unchanged scenes reused) → build/raw.mp4 (GPU H.264 in the browser)'); p.add_argument('--fps', type=int, default=30); p.add_argument('--page', dest='trang', default='film.html'); p.add_argument('--full', action='store_true', help='single-pass render of the whole video, no cache'); p.add_argument('--scene', nargs='+', metavar='id', help='force re-render of these scenes'); p.set_defaults(f=cmd_render)
     p = sp.add_parser('export', help='upload file + phone preview (< --limit MB) + publish package'); p.add_argument('--limit', dest='gioi_han', type=float, default=29); p.set_defaults(f=cmd_xuat)
     p = sp.add_parser('hf', help='render `hf:` scenes with HyperFrames (HTML + GSAP motion graphics: news maps, counters, headlines) → build/layers_hf/'); p.add_argument('canh', nargs='*', metavar='scene'); p.add_argument('--redo', dest='lam_lai', action='store_true'); p.set_defaults(f=cmd_hf)
@@ -1303,6 +1413,23 @@ def main():
     p = sp.add_parser('text-styles', help='render GIF previews of the animated subtitle/title styles (references/text-styles/)'); p.add_argument('--only'); p.add_argument('--width', type=int, default=360); p.add_argument('--fps', type=int, default=20); p.set_defaults(f=mod('textstyles'))
     p = sp.add_parser('character', help='code-drawn cartoon characters: demo previews (references/characters.md)'); p.add_argument('action', choices=['demo', 'styles', 'critters'])
     p.add_argument('--still', type=float); p.add_argument('--width', type=int, default=360); p.add_argument('--fps', type=int, default=15); p.set_defaults(f=mod('character'))
+    p = sp.add_parser('cast-design', help='AI design loop for code-drawn 2D characters: description/photo → spec → review sheet → score → lock (references/characters-ai-loop.md)')
+    p.add_argument('action', choices=['new', 'draw', 'score', 'cast', 'lock', 'yaml', 'list']); p.add_argument('id', nargs='?'); p.add_argument('ids', nargs='*')
+    p.add_argument('--desc'); p.add_argument('--ref'); p.add_argument('--license'); p.add_argument('--style', default='anime-thanh-nien'); p.add_argument('--name')
+    p.add_argument('--scores'); p.add_argument('--fix'); p.add_argument('--force', action='store_true'); p.set_defaults(f=mod('nhanvat'))
+    REDRAW = {'analyse': 'phan-tich', 'analyze': 'phan-tich', 'draw': 've', 'recolor': 'doi-mau', 'recolour': 'doi-mau', 'extend': 'mo-rong'}   # English aliases of the action names
+    p = sp.add_parser('redraw', help='redraw a flat/cel illustration as SVG in code: analyse → vectorize → line check → recolour → extend (references/ve-lai.md)')
+    p.add_argument('action', type=lambda v: REDRAW.get(v, v), choices=['phan-tich', 've', 'doi-mau', 'mo-rong', 'rig'], help='phan-tich (analyse) · ve (draw) · doi-mau (recolor) · mo-rong (extend) · rig')
+    p.add_argument('src', help='image (phan-tich) or its work folder')
+    p.add_argument('--out'); p.add_argument('--doi', action='append', help='name=#hex or #old=#new (repeatable)'); p.add_argument('--name', dest='ten', help='output name')
+    p.add_argument('--canvas', '--format', dest='khung', help='WxH of the extended canvas'); p.add_argument('--dat', help='x,y of the original inside it'); p.add_argument('--them', help='mo-rong: them.json / SVG with <g id="duoi"> / <g id="tren">; rig: rig_ve.json')
+    p.set_defaults(f=mod('ve_lai'))
+    POSE = {'open': 'mo', 'add': 'them', 'check': 'soat', 'list': 'ds', 'remove': 'xoa'}
+    p = sp.add_parser('pose-editor', help='FK pose & clip editor for 2D characters + shared custom clip library (references/dung-dang.md)')
+    p.add_argument('action', type=lambda v: POSE.get(v, v), choices=['mo', 'them', 'soat', 'ds', 'xoa'], help='mo (open) · them (add) · soat (check) · ds (list) · xoa (remove)')
+    p.add_argument('ten_hoac_file', nargs='?', help='clip name or JSON file')
+    p.add_argument('--nv', help='library character id (.mega-shot/nhanvat/<id>)'); p.add_argument('--clip'); p.add_argument('--port', type=int, default=8765)
+    p.add_argument('--name'); p.add_argument('--n', type=int, default=8); p.set_defaults(f=mod('dung_dang'))
     p = sp.add_parser('model', help='reusable procedural 3D models rebuilt from a reference image (references/models3d.md)'); p.add_argument('action', choices=['new', 'check', 'list'])
     p.add_argument('name', nargs='?'); p.add_argument('--from', dest='src', help='image path or pixabay:<id>'); p.add_argument('--license', default='')
     p.add_argument('--height', type=float, default=1.0, help='real-ish height (scene units ≈ metres)'); p.add_argument('--force', action='store_true')

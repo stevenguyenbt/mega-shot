@@ -1,0 +1,108 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#1b1f27">
+<canvas id="c"></canvas>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// AI design loop · REVIEW SHEET for one studio character (tools/nhanvat.py → `xp nhanvat ve`). The AI designer looks at this sheet and
+// scores it; the page also measures what a model judges badly by eye. Driven from Python:
+//   await nap({ spec, ten, vong, ref: dataURL|null, bang_mau: [hex…], dan: { id: spec } })  → METRICS ;  await render() → sheet on #c
+//   await doc(text) → MS.giaiphau.doc(text) (description → draft spec, same parser the engine uses)
+//   await dan(cast) → cast line-up sheet (same pose, colour + silhouette rows, pairwise silhouette overlap)
+const cv = document.getElementById('c'), x = cv.getContext('2d'), off = document.createElement('canvas'); off.width = 900; off.height = 1500; const og = off.getContext('2d', { willReadFrequently: true });
+const TEN_BC = { binh: 'neutral', cuoi: 'smile', vui: 'grin', tu_tin: 'confident', quyet: 'determined', gian: 'angry', ngac: 'surprised', so: 'scared', nghi: 'thinking', buon: 'sad', met: 'tired', nham: 'eyes closed' };
+const POSE = [['chi', .6, 'point', 'quyet'], ['vay', .3, 'wave', 'vui'], ['chay', .3, 'run', 'quyet'], ['khoanh-tay', 1, 'fold arms', 'tu_tin'], ['ngoi-xom', .7, 'squat', 'nghi'], ['nhay', .35, 'jump', 'vui']];
+// vocabulary the engine actually draws (an unknown value silently falls back → the designer must know)
+const VOCAB = () => ({ phong_cach: Object.keys(MS.xuong.styles || {}), hinh_the: Object.keys(MS.giaiphau.HINH_THE), 'toc.kieu': MS.toc.DANH_SACH,
+  tuoi: Object.keys(MS.giaiphau.CANON), gioi: ['nam', 'nu'], than_hinh: ['gay', 'vua', 'map', 'the-thao', 'om', 'beo', 'cao-gay', 'thap-dam'], chieu_cao: ['thap', 'vua', 'cao'],
+  'ao.kieu': ['thun', 'so-mi', 'hoodie', 'blazer', 'khoac-mo', 'ba-ba'], 'quan.kieu': ['dai', 'short', 'vay'], 'giay.kieu': ['the-thao', 'dep'], tay_kieu: ['that', 'hoat-hinh', 'gang'],
+  mat_dang: ['oval', 'tron', 'dai', 'vuong', 'nhon'], mat_kieu: ['thuong', 'tron', 'to', 'sac', 'cup', 'hep'], may_kieu: ['thuong', 'day', 'manh', 'ngang', 'cong', 'xech'], mui: ['gach', 'cham', 'cao', 'tron'],
+  dau: ['tan_nhang', 'not_ruoi', 'rau', 'ria', 'seo', 'ma_hong'], vai: ['chau', 'ba'], rang: ['nhon'] });
+const lum = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); if (!m) return null; const v = parseInt(m[1], 16), f = c => (c /= 255) <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; return .2126 * f(v >> 16 & 255) + .7152 * f(v >> 8 & 255) + .0722 * f(v & 255); };
+const tuongPhan = (a, b) => { const A = lum(a), B = lum(b); return A == null || B == null ? null : +((Math.max(A, B) + .05) / (Math.min(A, B) + .05)).toFixed(2); };
+let S = {}, ve, M = {};
+const actor = (bc, clip, huong = 1, v = ve) => MS.nv.actor({ id: 'nv', ve: v, x: 450, y: 1420, huong, goc: '3-4', bc, hd: [{ t: 0, clip }], lo_xo: false });
+const ve1 = (a, t) => { og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 900, 1500); MS.nv.scene(og, [a], t); return MS.nv.vungAt(a, t); };
+// silhouette mask of the current off-canvas, cropped to box b and normalised to w×h (aspect kept, feet on the bottom line)
+function mask(b, w = 96, h = 192) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true }), s = Math.min(w / b[2], h / b[3]);
+  g.drawImage(off, b[0], b[1], b[2], b[3], (w - b[2] * s) / 2, h - b[3] * s, b[2] * s, b[3] * s); const d = g.getImageData(0, 0, w, h).data, m = new Uint8Array(w * h); for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 100 ? 1 : 0; return m; }
+const iou = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; } return u ? i / u : 0; };
+function kiemTu(sp) {   // vocabulary + palette checks on the spec itself
+  const V = VOCAB(), w = [], get = k => k.split('.').reduce((o, p) => o == null ? o : o[p], sp);
+  for (const [k, list] of Object.entries(V)) { const v = get(k); if (v == null || k === 'dau') continue; if (!list.includes(v)) w.push(`${k} = "${v}" not in the studio (available: ${list.join(', ')})`); }
+  for (const d of sp.dau || []) if (!V.dau.includes(d)) w.push(`dau: "${d}" not available (available: ${V.dau.join(', ')})`);
+  const da = sp.da, toc = sp.toc && sp.toc.mau, ao = sp.ao && sp.ao.mau, quan = sp.quan && sp.quan.mau, giay = sp.giay && sp.giay.mau;
+  const cap = { 'da–tóc': tuongPhan(da, toc), 'da–áo': tuongPhan(da, ao), 'áo–quần': tuongPhan(ao, quan), 'tóc–áo': tuongPhan(toc, ao), 'quần–giày': tuongPhan(quan, giay) };
+  for (const [k, v] of Object.entries(cap)) if (v != null && v < 1.35 && !(k === 'quần–giày')) w.push(`contrast ${k} only ${v}:1 → the two areas merge when viewed small / in greyscale (should be ≥ 1.5)`);
+  return { canh_bao: w, tuong_phan: cap };
+}
+window.doc = async text => MS.giaiphau.doc(text);
+window.nap = async o => {
+  S = o; const cast = { nv: { ve: { kieu: 'anh', xuong: o.spec } } }; await MS.nv.loadCast(cast); ve = cast.nv.ve; const C = MS.nv.CUT[ve.bo], A = C.giaiphau || {};
+  if (o.ref) S.refImg = await new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = o.ref; });
+  // silhouette metrics on the hero pose and the action poses
+  const b0 = ve1(actor('tu_tin', 'dung-ngau'), 1).toan_than, m0 = mask(b0); let fill = 0; for (const v of m0) fill += v;
+  const masks = POSE.map(([clip, t]) => mask(ve1(actor('binh', clip), t).toan_than)), gian = masks.map(m => +(1 - iou(m, m0)).toFixed(2));
+  const kd = C.kiem_dinh || { ok: true, loi: [], sua: 0 }, tu = kiemTu(o.spec);
+  // likeness to the rest of the cast (same pose, normalised silhouette) — consistency inside a series, variety between characters
+  const giong = []; for (const [id, sp] of Object.entries(o.dan || {})) { const c2 = { o: { ve: { kieu: 'anh', xuong: sp } } }; await MS.nv.loadCast(c2);
+    const mb = mask(ve1(actor('binh', 'dung-ngau', 1, c2.o.ve), 1).toan_than); giong.push({ id, hinh_bong: +iou(mb, m0).toFixed(2), ao: tuongPhan(sp.ao && sp.ao.mau, o.spec.ao && o.spec.ao.mau), toc: tuongPhan(sp.toc && sp.toc.mau, o.spec.toc && o.spec.toc.mau) }); }
+  giong.sort((a, b) => b.hinh_bong - a.hinh_bong);
+  const canh_bao = [...tu.canh_bao, ...(kd.ok ? [] : kd.loi.slice(0, 6).map(l => `open joint: ${l.tu_the} ${l.khop} (coverage ${l.phu})`)), ...(A.notes || [])];
+  for (const g of giong) if (g.hinh_bong > .9 && (g.ao == null || g.ao < 1.3) && (g.toc == null || g.toc < 1.3)) canh_bao.push(`too similar to "${g.id}": silhouette ${g.hinh_bong}, shirt / hair colours close → hard to tell apart in the same frame`);
+  M = { khop: { ok: kd.ok, loi: kd.loi.length, tu_sua: kd.sua || 0 }, ti_le: A.H ? { cao_dau: +(A.tong / A.H).toFixed(2), vai_H: +(2 * A.vai / A.H).toFixed(2), tuoi: A.tuoi, nu: !!A.nu } : null,
+    hinh_bong: { phu_khung: +(fill / m0.length).toFixed(2), ty_le_rong_cao: +(b0[2] / b0[3]).toFixed(2), doi_dang_tb: +(gian.reduce((a, b) => a + b, 0) / gian.length).toFixed(2), doi_dang: Object.fromEntries(POSE.map((p, i) => [p[0], gian[i]])) },
+    tuong_phan: tu.tuong_phan, giong_dan: giong.slice(0, 3), canh_bao };
+  window.READY = true; return M;
+};
+function chu(s, X, Y, o = {}) { x.fillStyle = o.mau || '#e8edf4'; x.font = o.font || '18px sans-serif'; x.fillText(s, X, Y); }
+function hop(X, Y, W, H, nen = '#262c37') { x.fillStyle = nen; x.beginPath(); x.roundRect(X, Y, W, H, 12); x.fill(); }
+function dat(b0, X, Y, W, H, o = {}) { const p = b0[2] * .15, b = [b0[0] - p, b0[1] - 8, b0[2] + 2 * p, b0[3] + 8]; const s = Math.min(W / b[2], H / b[3]), w = b[2] * s, h = b[3] * s; x.save(); if (o.filter) x.filter = o.filter;
+  if (o.den) { const t = document.createElement('canvas'); t.width = b[2]; t.height = b[3]; const g = t.getContext('2d'); g.drawImage(off, b[0], b[1], b[2], b[3], 0, 0, b[2], b[3]); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#0d0f14'; g.fillRect(0, 0, b[2], b[3]); x.drawImage(t, X + (W - w) / 2, Y + H - h, w, h); }
+  else x.drawImage(off, b[0], b[1], b[2], b[3], X + (W - w) / 2, Y + H - h, w, h); x.restore(); }
+window.render = async () => {
+  const W = 2520, H = 1580; cv.width = W; cv.height = H; x.fillStyle = '#1b1f27'; x.fillRect(0, 0, W, H);
+  chu(`${S.ten || S.spec.ten || 'Character'} · ${S.spec.phong_cach || 'default'} · round ${S.vong || 1}`, 24, 44, { font: '700 32px sans-serif', mau: '#ffe08a' });
+  chu(S.mo_ta ? '“' + S.mo_ta.slice(0, 150) + '”' : '', 24, 76, { mau: '#aab6c8' });
+  // A · reference + palette
+  hop(20, 96, 400, 700); chu('REFERENCE IMAGE', 36, 126, { font: '700 18px sans-serif', mau: '#9fb3cc' });
+  if (S.refImg) { const s = Math.min(368 / S.refImg.width, 520 / S.refImg.height); x.drawImage(S.refImg, 36 + (368 - S.refImg.width * s) / 2, 140, S.refImg.width * s, S.refImg.height * s); } else chu('(none — text description only)', 36, 170, { mau: '#6c7a8e' });
+  (S.bang_mau || []).slice(0, 8).forEach((c, i) => { x.fillStyle = c; x.fillRect(36 + i * 46, 680, 40, 40); chu(c, 36 + i * 46, 740, { font: '10px monospace', mau: '#8090a4' }); });
+  if ((S.bang_mau || []).length) chu('dominant colours in the image', 36, 672, { font: '14px sans-serif', mau: '#8090a4' });
+  // B · hero → and ←
+  hop(436, 96, 640, 1000); chu('MAIN · 3/4 both directions', 452, 126, { font: '700 18px sans-serif', mau: '#9fb3cc' });
+  dat(ve1(actor('tu_tin', 'dung-ngau'), 1).toan_than, 452, 140, 300, 940); dat(ve1(actor('cuoi', 'dung', -1), .5).toan_than, 760, 140, 300, 940);
+  // C · test strip: silhouette, grey value, phone size
+  hop(20, 812, 400, 284); chu('READABILITY TEST', 36, 842, { font: '700 18px sans-serif', mau: '#9fb3cc' });
+  [['chi', .6], ['vay', .3], ['chay', .3]].forEach(([c, t], i) => dat(ve1(actor('binh', c), t).toan_than, 30 + i * 80, 856, 80, 200, { den: 1 })); chu('silhouette', 40, 1080, { font: '14px sans-serif', mau: '#8090a4' });
+  dat(ve1(actor('tu_tin', 'dung-ngau'), 1).toan_than, 270, 856, 70, 200, { filter: 'grayscale(1)' }); chu('grey', 285, 1080, { font: '14px sans-serif', mau: '#8090a4' });
+  { const b = ve1(actor('tu_tin', 'dung-ngau'), 1).toan_than; dat(b, 350, 996, 60, 60); chu('phone size', 352, 1080, { font: '14px sans-serif', mau: '#8090a4' }); }
+  // D · poses
+  hop(1092, 96, 1408, 470); chu('ACTIONS (shared clip library)', 1108, 126, { font: '700 18px sans-serif', mau: '#9fb3cc' });
+  POSE.forEach(([clip, t, ten, bc], i) => { dat(ve1(actor(bc, clip, i % 2 ? -1 : 1), t).toan_than, 1104 + i * 232, 140, 220, 390); chu(ten, 1112 + i * 232, 554, { mau: '#c8d4e4' }); });
+  // E · expressions
+  hop(1092, 582, 1408, 514); chu('EXPRESSIONS', 1108, 612, { font: '700 18px sans-serif', mau: '#9fb3cc' });
+  Object.keys(TEN_BC).forEach((bc, i) => { const X = 1104 + (i % 6) * 232, Y = 624 + Math.floor(i / 6) * 234, h = ve1(actor(bc, 'dung'), .5).dau, pd = h[2] * .1;
+    x.fillStyle = '#eef0f2'; x.beginPath(); x.roundRect(X, Y, 222, 222, 12); x.fill(); x.save(); x.beginPath(); x.roundRect(X, Y, 222, 222, 12); x.clip();
+    const s = Math.min(214 / (h[2] + 2 * pd), 186 / (h[3] + 2 * pd)); x.drawImage(off, h[0] - pd, h[1] - pd, h[2] + 2 * pd, h[3] + 2 * pd, X + (222 - (h[2] + 2 * pd) * s) / 2, Y + 4, (h[2] + 2 * pd) * s, (h[3] + 2 * pd) * s); x.restore();
+    chu(TEN_BC[bc], X + 12, Y + 212, { font: '600 16px sans-serif', mau: '#2a2a34' }); });
+  // F · automatic measurements + warnings
+  hop(20, 1112, 2480, 448); chu('AUTOMATIC MEASUREMENTS', 36, 1142, { font: '700 18px sans-serif', mau: '#9fb3cc' });
+  const L = [`joints: ${M.khop.ok ? 'closed in every test pose ✓' : M.khop.loi + ' open spots ✗'}${M.khop.tu_sua ? ' (auto-repaired ' + M.khop.tu_sua + ' times)' : ''}`,
+    M.ti_le ? `proportions: ${M.ti_le.cao_dau} heads tall · shoulders ${M.ti_le.vai_H} H · ${M.ti_le.tuoi} · ${M.ti_le.nu ? 'female' : 'male'}` : '',
+    `silhouette: frame fill ${M.hinh_bong.phu_khung} · width/height ${M.hinh_bong.ty_le_rong_cao} · average pose change ${M.hinh_bong.doi_dang_tb} (≥ 0.25 reads clearly)`,
+    'contrast: ' + Object.entries(M.tuong_phan).map(([k, v]) => `${k} ${v ?? '–'}`).join(' · '),
+    M.giong_dan.length ? 'most similar in the cast: ' + M.giong_dan.map(g => `${g.id} (silhouette ${g.hinh_bong}, shirt ${g.ao ?? '–'}:1, hair ${g.toc ?? '–'}:1)`).join(' · ') : 'cast: (no other characters in the library yet)'];
+  L.filter(Boolean).forEach((s, i) => chu(s, 36, 1176 + i * 30));
+  chu(M.canh_bao.length ? 'WARNINGS' : 'no warnings ✓', 36, 1346, { font: '700 18px sans-serif', mau: M.canh_bao.length ? '#ff9a7a' : '#8fe08a' });
+  M.canh_bao.slice(0, 6).forEach((s, i) => chu('• ' + s.slice(0, 200), 36, 1374 + i * 28, { mau: '#ffc8b0' }));
+  return 1;
+};
+// cast line-up: every character in the same pose → colour row + silhouette row, labelled
+window.dan = async specs => { const ids = Object.keys(specs), n = ids.length, CW = 300; cv.width = Math.max(CW * n, 1240) + 40; cv.height = 1240; x.fillStyle = '#1b1f27'; x.fillRect(0, 0, cv.width, cv.height);
+  chu('CAST · same pose · bottom row = silhouettes (each person must be recognisable by silhouette alone)', 20, 40, { font: '700 22px sans-serif', mau: '#ffe08a' });
+  const ms = []; for (const [i, id] of ids.entries()) { const c = { o: { ve: { kieu: 'anh', xuong: specs[id] } } }; await MS.nv.loadCast(c);
+    const b = ve1(actor('cuoi', 'dung-ngau', 1, c.o.ve), 1).toan_than; dat(b, 20 + i * CW, 60, CW - 20, 720); dat(b, 60 + i * CW, 840, CW - 100, 340, { den: 1 }); ms.push(mask(b));
+    chu(specs[id].ten || id, 30 + i * CW, 812, { font: '600 20px sans-serif' }); }
+  const cap = []; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) cap.push({ a: ids[i], b: ids[j], hinh_bong: +iou(ms[i], ms[j]).toFixed(2) });
+  cap.sort((p, q) => q.hinh_bong - p.hinh_bong); chu('silhouette overlap (high = hard to tell apart): ' + cap.slice(0, 4).map(c => `${c.a}–${c.b} ${c.hinh_bong}`).join(' · '), 20, 1220, { mau: '#aab6c8' }); return cap; };
+window.READY = true;
+</script>

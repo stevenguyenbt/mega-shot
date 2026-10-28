@@ -21,6 +21,13 @@ mega-shot **downloads or calls at run time** (not bundled — each keeps its own
 > (https://github.com/img2threejs/img2threejs), licensed under the Apache License 2.0.
 > No img2threejs source files are bundled; the code here is an independent re-implementation.
 
+### Ideas adapted (no code, data or assets copied)
+
+| Where in mega-shot | Source of the idea | Licence of the source | What was taken |
+|---|---|---|---|
+| `xp pose-editor` (`tools/dung_dang.py`, `engine/core/xuong_dung_dang.html`, `xuong_hanh_dong.html`, easing/transition additions in `engine/core/nhanvat.js`) | [ArtCraft](https://github.com/storytold/artcraft) | MIT / Apache-2.0 | ideas only: FK bone posing with per-joint handles, clip strips on a timeline with opt-in bezier transitions, deterministic playhead evaluation, cubic-bezier easing. Re-implemented for the 2D rig; no ArtCraft code is copied, and its Mixamo / MMD motion data (not covered by its licence) is not used. |
+| `xp review` first-3-seconds and reading-time checks (`soat_mo_dau`, `soat_doc_chu` in `tools/xp.py`), the 6-question film review sheet `build/duyet_phim.md` (`DUYET_6`) | chaojifeng-video-design ("前三秒" first-three-seconds rule, explainer timing audit, review-and-revision method) | MIT | ideas and thresholds only, re-implemented and measured on the rendered page; no code or text copied. |
+
 ### Preview images
 
 `references/previews/`, `references/text-styles/`, `references/characters/` and the gallery images

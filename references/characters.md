@@ -1,4 +1,7 @@
 # Code-drawn cartoon characters (puppet.js)
+> New clips: drag-to-pose editor + custom clip library + bezier transitions → [dung-dang.md](dung-dang.md) (`xp pose-editor`).
+
+> Story-film characters (character studio, `ve: { kieu: anh, xuong }`) are designed with the AI loop `xp cast-design` — see [characters-ai-loop.md](characters-ai-loop.md). To turn a flat illustration into SVG / a cut-out character, see [ve-lai.md](ve-lai.md) (`xp redraw`).
 
 Characters are **data specs** drawn by `engine/core/puppet.js`. The look is hand-drawn: thick ink outlines that "boil" (re-jitter about 10× per second) and flat colours. Each character is built on a jointed rig with:
 - spring transitions between poses;

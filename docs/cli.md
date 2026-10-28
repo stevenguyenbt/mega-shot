@@ -30,12 +30,12 @@ Run `xp <command> --help` for every flag. Run commands from your **project folde
 | `xp blender [scene…]` · `xp 3d <script.py>` | Blender scenes / one Blender still |
 | `xp prompts` / `xp images` | AI-image prompts / import generated images |
 | `xp compose` | perform the video's own ABC music score → `build/nhac_soan.wav` |
-| `xp review` | dropped words, subtitle ≠ speech, text off-frame — **before** rendering |
+| `xp review [--skip-read]` | dropped words, subtitle ≠ speech, text off-frame, first 3 seconds, on-screen reading time — **before** rendering |
 | `xp preview [--at 5,12,30]` | preview frames + contact sheet `build/thu.jpg` |
 | `xp mix` | voice + music + SFX → `build/mix.wav` |
 | `xp render [--scene id…] [--full]` | render (per-scene cache) |
 | `xp export [--limit 29]` | upload file + phone preview + publishing package + subtitles |
-| `xp check` | quality check of the export (cut self-check, ending, loudness) |
+| `xp check` | quality check of the export (cut self-check, ending, loudness) + `build/duyet_phim.md` 6-question review sheet |
 | `xp all` | narrate → mix → render → export → check |
 | `xp publish` · `xp subtitles [--langs ja,es]` · `xp thumbnail [new]` | publishing package · caption files · thumbnails |
 
@@ -53,6 +53,9 @@ Run `xp <command> --help` for every flag. Run commands from your **project folde
 | `xp restore <image>` | rebuild a low-quality image sharper / cleaner / larger |
 | `xp model new\|check\|list` | reusable procedural 3D models from a reference image |
 | `xp character demo` · `xp text-styles` | regenerate preview GIFs |
+| `xp cast-design new\|draw\|score\|cast\|lock\|yaml\|list <id>` | AI design loop for code-drawn 2D characters — [characters-ai-loop.md](../references/characters-ai-loop.md) |
+| `xp redraw phan-tich\|ve\|doi-mau\|mo-rong\|rig <image\|folder>` | redraw a flat illustration as SVG, recolour, extend, cut-out rig — [ve-lai.md](../references/ve-lai.md) |
+| `xp pose-editor mo\|them\|soat\|ds\|xoa` | FK pose & clip editor + shared custom clip library — [dung-dang.md](../references/dung-dang.md) |
 | `xp download polyhaven <id>` / `xp download url <link> --name --license --source` | one asset + licence log |
 | `xp pack` | build a distributable zip (secret scan included) |
 
@@ -77,3 +80,4 @@ Run `xp <command> --help` for every flag. Run commands from your **project folde
 | `anhbia` (`anhbia moi`) | `thumbnail` (`thumbnail new`) | | `--t` | `--at` |
 | `dangbai` | `publish` | | `--xoa` | `--delete` |
 | `nhac` · `don` · `vetinh` · `taitao` | `compose` · `cleanup` · `satellite` · `restore` | | | |
+| `nhanvat` · `ve-lai` · `dung-dang` | `cast-design` · `redraw` · `pose-editor` | | | |

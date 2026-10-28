@@ -27,6 +27,15 @@
   const sstep = t => { t = clamp(t); return t * t * (3 - 2 * t); };
   const hash = n => { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); };
   // step response of a damped spring (0 → 1, z < 1 overshoots a little): the shape of every blend / turn
+  // cubic-bezier easing (CSS-style, endpoints 0,0 → 1,1; Newton solve on x) — ported from ArtCraft (github.com/storytold/artcraft,
+  // timeline/interpolation.ts, MIT / Apache-2.0). Used by key easing (keys[i][2]) and timeline transitions (hd[i].chuyen).
+  const EASE = { lin: [0, 0, 1, 1], vao: [.42, 0, 1, 1], ra: [0, 0, .58, 1], 'vao-ra': [.42, 0, .58, 1], 'nhanh-cham': [.16, 1, .3, 1],
+    'cham-nhanh': [.7, 0, .84, 0], nay: [.34, 1.56, .64, 1], 'lay-da': [.6, -.28, .74, .05], 'lay-da-nay': [.68, -.55, .27, 1.55] };
+  const easeOf = e => Array.isArray(e) && e.length === 4 ? e : EASE[e] || null;
+  const bezAx = (t, a1, a2) => { const c = 3 * a1, b = 3 * (a2 - a1) - c, a = 1 - c - b; return ((a * t + b) * t + c) * t; };
+  const bez = (E, x) => { if (x <= 0) return 0; if (x >= 1) return 1; let t = x;
+    for (let i = 0; i < 8; i++) { const err = bezAx(t, E[0], E[2]) - x; if (Math.abs(err) < 1e-5) break; const c = 3 * E[0], b = 3 * (E[2] - E[0]) - c, a = 1 - c - b, d = (3 * a * t + 2 * b) * t + c; if (Math.abs(d) < 1e-6) break; t -= err / d; }
+    return bezAx(Math.max(0, Math.min(1, t)), E[1], E[3]); };
   const spr = (t, w = 13, z = .78) => { if (t <= 0) return 0; const wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + z * w / wd * Math.sin(wd * t)); };
 
   // ---------------- rig (units at scale 1; total height ≈ 560 with hair) ----------------
@@ -40,10 +49,12 @@
     const B0 = ve.kieu === 'anh' && CUT[ve.bo] ? { ...BASE, ...CUT[ve.bo].rig } : BASE;
     const r = { ...B0, T: B0.T * c, S: B0.S * c, ank: B0.ank * Math.sqrt(c), foot: B0.foot * Math.sqrt(c), heel: B0.heel * Math.sqrt(c), hipW: B0.hipW * v,
       sp: B0.sp.map(x => x * b), neck: B0.neck * b, headUp: B0.headUp * h, headR: B0.headR * h, shW: B0.shW * v, shDrop: B0.shDrop * b, up: B0.up * t, fore: B0.fore * t };
-    r.H0 = r.T + r.S + r.ank - 5; r.LS = (r.T + r.S) / (BASE.T + BASE.S); r.W = (k.rong ?? 1) * v; return r;
+    r.H0 = r.T + r.S + r.ank - 5; r.LS = (r.T + r.S) / (BASE.T + BASE.S); r.W = (k.rong ?? 1) * v;
+    // sit / lie hip height (clip hh): scaled by shin + ankle (the seat height), which differs from the whole-leg ratio on chibi cut-outs (short thighs)
+    r.LSh = ve && ve.kieu === 'anh' && CUT[ve.bo] && CUT[ve.bo].tay_truoc ? (r.S + r.ank) / (BASE.S + BASE.ank) : r.LS; return r;
   }
-  let R = rigOf(), H0 = R.H0, LS = 1;
-  const useRig = a => { R = a.R || (a.R = rigOf(a.ve)); H0 = R.H0; LS = R.LS; };
+  let R = rigOf(), H0 = R.H0, LS = 1, LSh = 1;
+  const useRig = a => { R = a.R || (a.R = rigOf(a.ve)); H0 = R.H0; LS = R.LS; LSh = R.LSh ?? R.LS; };
   const DEF = { rot: 0, dx: 0, dy: 0, hh: BASE.T + BASE.S + BASE.ank - 5, hf: 0, sp: .03, sb: 0, tw: 0, nk: 0, hr: 0, hy: 0, sh: 0,
     aNp: .07, aNa: .1, aNe: .2, aFp: -.04, aFa: .1, aFe: .16, gN: 0, gF: 0, kN: 0, kF: 0, oN: 0, oF: 0,
     lNp: .04, lNa: .02, lNk: .06, lNf: 0, lFp: -.04, lFa: .02, lFk: .05, lFf: 0, pN: 1, pF: 1 };
@@ -72,8 +83,9 @@
     if (e === 'giu') return { ...A };
     const prev = i > 0 ? K[i - 1] : c.loop ? [K[n - 2][0] - L, K[n - 2][1]] : null, next = i + 2 < n ? K[i + 2] : c.loop ? [K[1][0] + L, K[1][1]] : null;
     const h00 = 2 * s * s * s - 3 * s * s + 1, h10 = s * s * s - 2 * s * s + s, h01 = -2 * s * s * s + 3 * s * s, h11 = s * s * s - s * s, o = {};
+    const ez = e && e !== 'lin' ? easeOf(e) : null, se = ez ? bez(ez, s) : s;    // eased key: straight blend along a bezier timing curve
     for (const k in A) { const a = A[k], b = B[k]; if (typeof a !== 'number') { o[k] = s < .5 ? a : b; continue; }
-      if (e === 'lin') { o[k] = a + (b - a) * s; continue; }
+      if (e === 'lin' || ez) { o[k] = a + (b - a) * se; continue; }
       const m0 = prev ? (b - prev[1][k]) / (t1 - prev[0]) : 0, m1 = next ? (next[1][k] - a) / (next[0] - t0) : 0;
       o[k] = h00 * a + h10 * dt * m0 + h01 * b + h11 * dt * m1; }
     return o;
@@ -170,7 +182,8 @@
   function clipPose(a, i, t) {                                                   // timeline entry i (+ cross-fade from i−1), R/L space
     const e = a.hd[i], c = CLIPS[e.clip], lt = t - e.t + (e.tu || 0);
     let P = c.fn ? c.fn(lt, a) : sample(c, lt); P = toLR(P, e.nl); P._c = c;
-    if (i > 0 && t - e.t < e.mix) { const w = spr((t - e.t) / e.mix * 1.05, 6.2, .8); const Q = clipPose(a, i - 1, t); return blend(Q, P, w); }
+    // e.chuyen: bezier transition (ArtCraft-style strip transition) instead of the spring-shaped cross-fade
+    if (i > 0 && t - e.t < e.mix) { const ec = e.chuyen && easeOf(e.chuyen), w = ec ? bez(ec, (t - e.t) / e.mix) : spr((t - e.t) / e.mix * 1.05, 6.2, .8); const Q = clipPose(a, i - 1, t); return blend(Q, P, w); }
     return P;
   }
   let GS = 0;
@@ -178,7 +191,7 @@
     if (P.fR) return P; const o = { ...P }, leg = {};
     for (const s of ['R', 'L']) { const a1 = P['l' + s + 'p'] - P.rot, a2 = a1 - P['l' + s + 'k']; leg[s] = { an: [Math.sin(a1) * R.T + Math.sin(a2) * R.S, -Math.cos(a1) * R.T - Math.cos(a2) * R.S], fp: a2 + PI / 2 + P['l' + s + 'f'] }; }
     let hf = -1e9, any = 0; for (const s of ['R', 'L']) if (P['p' + s] > .01) { any = 1; hf = Math.max(hf, R.ank + GS * (P.dx + leg[s].an[0]) - leg[s].an[1]); }
-    const H = lerp(any ? hf : P.hh * LS, P.hh * LS, P.hf);
+    const H = lerp(any ? hf : P.hh * LSh, P.hh * LSh, P.hf);
     for (const s of ['R', 'L']) { const pl = P['p' + s]; const f = P.dx + leg[s].an[0], gu = R.ank + GS * f; let u = H + P.dy + leg[s].an[1]; if (pl > 0) u = lerp(u, gu, pl);
       o['f' + s] = [f, u, lerp(leg[s].fp, PI / 2 + Math.atan(GS), pl)]; o['p' + s] = 0; }
     o.hip = [0, H]; return o;
@@ -249,7 +262,7 @@
     if (P.hip) hip = [P.hip[0] + P.dx, P.hip[1] + P.dy];
     else { let hf = -1e9, any = 0;
       for (const s of ['R', 'L']) if (P['p' + s] > .01) { any = 1; hf = Math.max(hf, R.ank + gs * (P.dx + leg[s].an[0]) - leg[s].an[1]); }
-      hip = [P.dx, lerp(any ? hf : P.hh * LS, P.hh * LS, P.hf) + P.dy]; }
+      hip = [P.dx, lerp(any ? hf : P.hh * LSh, P.hh * LSh, P.hf) + P.dy]; }
     for (const s of ['R', 'L']) { const L = leg[s]; if (!L.abs) L.an = [hip[0] + L.an[0], hip[1] + L.an[1]];
       const pl = P['p' + s] || 0, gu = R.ank + gs * L.an[0];
       if (pl > 0) { L.an[1] = lerp(L.an[1], gu, pl); L.fp = lerp(L.fp, PI / 2 + Math.atan(gs), pl); }
@@ -510,7 +523,15 @@
     // oblique projection matched to the artwork's view: forward/back motion at full screen size (strides match root motion, no foot slide),
     // left/right body width kept wide (the parts are drawn near-front), mirrored by facing. depth = toward camera on the near side.
     const fb = Math.sin(J.thC) >= 0 ? 1 : -1, fh = Math.sin(J.thD) >= 0 ? 1 : -1, CL = C.rong_ngang ?? .9;
-    const Wd = p => { const X = fb * (p[0] + p[2] * CL), Y = -p[1]; return [at.x + X * s - X * s * sq * .5, at.y + Y * s * (1 - sq), -p[2]]; };   // the whole body mirrors with the art: R side = back side, always nearer
+    // multi-view bodies (than_huong from xp ve-lai rig): projection coefficients interpolated on the body yaw (smooth turn), torso / shorts / shoes art = nearest view
+    const TH = C.than_huong ? (() => { const y = Math.abs(Math.atan2(Math.sin(J.thC), Math.cos(J.thC))), L = C.than_huong; let i = 0; while (i < L.length - 2 && y > L[i + 1].yaw) i++;
+      const A = L[i], B = L[i + 1], u = clamp((y - A.yaw) / (B.yaw - A.yaw)), nv = L.reduce((b, v) => Math.abs((v.chon ?? v.yaw) - y) < Math.abs((b.chon ?? b.yaw) - y) ? v : b);
+      const fl = nv.yaw < .5 || nv.yaw > 2.6, m = (k) => fl ? nv[k] : lerp(A[k], B[k], u);   // front / back art: its own projection (art and limbs agree); 3/4 ↔ profile: blended
+      return { y, cf: m('cf'), cl: m('cl'), vai: m('vai'), hau: nv.hau, vy: nv.yaw, giay: nv.giay, sk: Math.min(1, Math.sin(y) / .813) }; })() : null;
+    const bn = nm => TH && TH.hau && C.manh[nm + '@' + TH.hau] ? nm + '@' + TH.hau : nm, TF = TH && TH.vy < .5, TB = TH && TH.vy > 2.6;
+    const WdX = (p, ox = 0) => { const X = TH ? fb * (p[0] * TH.cf + p[2] * TH.cl + ox) : fb * (p[0] + p[2] * CL), Y = -p[1];
+      return [at.x + X * s - X * s * sq * .5, at.y + Y * s * (1 - sq), TH ? p[0] * Math.cos(TH.y) - p[2] * TH.sk : -p[2]]; };
+    const Wd = p => WdX(p);   // the whole body mirrors with the art: R side = back side, always nearer
     let LY = 'img'; const imOf = (name, side) => LY === 'img' ? (side > 0 ? C.img[name] : C.flip[name]) : ((C[side > 0 ? LY : LY + 'F'] || {})[name]);   // layer: art | rf (full outline) | rm (root-masked outline)
     const pin = (name, side) => { const p = C.manh[name], im = imOf(name, side), w = im.width;
       return { p, im, g: side > 0 ? p.goc : [w - p.goc[0], p.goc[1]], n: p.ngon ? (side > 0 ? p.ngon : [w - p.ngon[0], p.ngon[1]]) : null }; };
@@ -530,48 +551,83 @@
       x.restore(); };
     x.fillStyle = 'rgba(0,0,0,.2)'; x.beginPath(); x.ellipse(at.x, at.y + 2, 80 * s, 12 * s, 0, 0, 7); x.fill();
     const items = [], push = (z, f, b) => items.push({ z, f, b });   // b: body part (gets the seamless outline treatment)
-    const wlk = clamp(J.P.wl || 0), latK = 1 - .62 * wlk;                          // walking: the legs swing in a 3/4 plane under the near-front torso
+    // stool for sitting clips (cut-outs return before the flat-look stool): seat just under the hips, behind the legs
+    if (a.sitting && a.ghe !== false && C.tay_truoc) { const top = at.y - (CLIPS.ngoi.keys[0][1].hh * LSh - 14) * s, w = (R.hipW * 2 + R.T * .7) * s, sx = at.x - fb * R.T * .12 * s;
+      push(17, () => { x.fillStyle = '#6a4a32'; x.strokeStyle = '#2a1a10'; x.lineWidth = 3 * s; x.beginPath(); x.roundRect(sx - w / 2, top, w, 12 * s, 4 * s); x.fill(); x.stroke();
+        x.fillStyle = '#54392a'; for (const k of [-.36, .28]) { x.beginPath(); x.rect(sx + k * w - 5 * s, top + 12 * s, 10 * s, at.y - top - 12 * s); x.fill(); x.stroke(); } }); }
+    const wlk = clamp(J.P.wl || 0), latK = 1 - .62 * wlk * (TH ? TH.sk : 1);       // walking: the legs swing in a 3/4 plane under the near-front torso (front / back views keep them apart)
     for (const sd of ['R', 'L']) { const L = J.leg[sd], lat = (sd === 'R' ? -1 : 1) * R.hipW * latK, fd = [Math.sin(L.fp), -Math.cos(L.fp)];
       const hipJ = Wd([J.hip[0], J.hip[1], lat], J.thH), kn = Wd([L.kn[0], L.kn[1], lat], J.thH), an = Wd([L.an[0], L.an[1], lat], J.thH), toe = Wd([L.an[0] + fd[0] * R.foot, L.an[1] + fd[1] * R.foot, lat], J.thH);
-      const z = kn[2], dim = z < 0 ? .84 : 0;
-      push(18.5 + z * .001, () => { if (C.manh.chan) warp('chan', [hipJ, kn, an], fb, dim); else { place('dui', hipJ, kn, fb, dim); place('cang_chan', kn, an, fb, dim); } place('giay', an, toe, fb, dim); }, 1); }   // legs over the shorts waist, under the jacket
+      const z = kn[2], dim = z < (TH ? -6 : 0) ? .84 : 0;
+      // front / back views: the shoe is seen toe-on / heel-on (its own art, kept level)
+      const shoe = () => TH && TH.giay && C.manh[TH.giay] && (TF || TB) ? place(TH.giay, an, [an[0] + fb, an[1]], fb, dim) : place('giay', an, toe, fb, dim);
+      push(18.5 + z * .001, () => { if (C.manh.chan) warp('chan', [hipJ, kn, an], fb, dim); else { place('dui', hipJ, kn, fb, dim); place('cang_chan', kn, an, fb, dim); } shoe(); }, 1); }   // legs over the shorts waist, under the jacket
     const S = J.S.map((p, k) => Wd(p, lerp(J.thH, J.thC, k / 3)));
-    push(19, () => place('quan', S[0], S[1], fb), 1);                               // shorts waist + crotch over the leg tops, under the jacket
-    push(20, () => { if (C.manh.than && C.manh.than.kieu === 'day') warp('than', [S[3], S[1], S[0]], fb); else place('than', S[0], S[3], fb); }, 1);   // torso bends with the spine (waist) instead of a rigid board
-    const nearS = 'R'; let hand = null; const hands = {};
+    push(19, () => place(bn('quan'), S[0], S[1], fb), 1);                               // shorts waist + crotch over the leg tops, under the jacket
+    push(20, () => { if (C.manh.than && C.manh.than.kieu === 'day') warp('than', [S[3], S[1], S[0]], fb); else place(bn('than'), S[0], S[3], fb); }, 1);   // torso bends with the spine (waist) instead of a rigid board
+    // tay_truoc cut-outs: the arm the clips author as NEAR (aN*, played on L) is the one drawn in front — the main action (wave, point, punch) stays visible
+    const nearS = C.tay_truoc ? 'L' : 'R'; let hand = null; const hands = {};
     const dep = wlk * (J.E.c.tren || J.E.c.tay ? 0 : .42), sq3 = (p, o, k) => k < .999 ? [o[0] + (p[0] - o[0]) * k, p[1], p[2]] : p;   // walk arm swing: part of the forward/back travel goes into depth
     const kfOf = A => { const rch = Math.hypot(A.Wr[0] - A.Sh[0], A.Wr[1] - A.Sh[1], A.Wr[2] - A.Sh[2]) / (R.up + R.fore); return Math.min(1 - dep, lerp(.5, 1, sstep((rch - .7) / .24))); };   // folded arm → forward shown as depth
-    for (const sd of ['R', 'L']) { const A = J.arm[sd]; if (!A) continue; const kf = kfOf(A), Sh = Wd(A.Sh), El = Wd(sq3(A.El, A.Sh, kf)), Wr = Wd(sq3(A.Wr, A.Sh, kf)), q3 = J.q3, fwd = p => (p[0] - A.Sh[0]) * Math.cos(q3) - (p[1] - A.Sh[1]) * Math.sin(q3), aL = R.up + R.fore,
+    for (const sd of ['R', 'L']) { const A = J.arm[sd]; if (!A) continue; const kf = kfOf(A), ox = TH ? (sd === 'R' ? -1 : 1) * TH.vai - TH.cl * A.Sh[2] : 0, Sh = WdX(A.Sh, ox), El = WdX(sq3(A.El, A.Sh, kf), ox), Wr = WdX(sq3(A.Wr, A.Sh, kf), ox), q3 = J.q3, fwd = p => (p[0] - A.Sh[0]) * Math.cos(q3) - (p[1] - A.Sh[1]) * Math.sin(q3), aL = R.up + R.fore,
         cross = (sd === 'R' ? -1 : 1) * A.Wr[2] < -R.shW * .3, front = Math.max(fwd(A.El), fwd(A.Wr)) > aL * .22 || cross, face = J.E.c.mat && front && fwd(A.Wr) > aL * .15 && A.Wr[1] > J.Nk[1] - R.neck,
-        z = face ? 31 + (sd === nearS ? .1 : 0) : front ? 24 + (sd === nearS ? .1 : 0) : sd === nearS ? (C.rf ? 20.6 : 19.7) : 19.6;   // 3/4: the near arm hangs IN FRONT of the torso side, the far arm behind it   // arms reaching forward / across the chest come in front of the torso (hands at the face: in front of it)   // sleeves tuck under the jacket shoulders; a hand crossing the body comes in front   // a raised near arm goes behind the big head
+        // body views: front = both arms hang over the shirt edges (a hand at the face in front of it); back = arms beside the back, anything reaching forward is hidden by the body
+        z = TF ? (face ? 31 : 24) + (sd === nearS ? .1 : 0) : TB ? (front ? 19.2 : 24) + (sd === nearS ? .1 : 0)
+          : C.tay_truoc ? (sd === nearS ? (face || A.Wr[1] > J.Nk[1] ? 30.6 : front ? 24.1 : 20.6) : face ? 31 : front ? 19.9 : 18)   // wide-shirt cut-outs (tay_truoc): near arm in front of torso, raised above the neck = in front of the big head; far arm forward = behind the torso (only what passes its front edge shows), at rest = hidden behind torso + shorts
+          : face ? 31 + (sd === nearS ? .1 : 0) : front ? 24 + (sd === nearS ? .1 : 0) : sd === nearS ? (C.rf ? 20.6 : 19.7) : 19.6;   // 3/4: the near arm hangs IN FRONT of the torso side, the far arm behind it   // arms reaching forward / across the chest come in front of the torso (hands at the face: in front of it)   // sleeves tuck under the jacket shoulders; a hand crossing the body comes in front   // a raised near arm goes behind the big head
       if (sd === nearS) hand = { Hd: Wr, El, z }; hands[sd] = { Hd: Wr, El, z };
       push(z, () => { const arm = C.manh['tay_' + sd] ? 'tay_' + sd : 'tay'; if (C.manh[arm]) { warp(arm, [Sh, El, Wr], fb, z < 0 ? .84 : 0); const hp = A.k > .5 ? 'chi' : A.g > .5 ? 'nam' : A.o > .5 ? 'xoe' : 'tha', hn = 'ban_tay_' + hp + '_' + sd;   // posable hand piece
         if (C.manh[hn]) place(hn, Wr, [Wr[0] + (Wr[0] - El[0]), Wr[1] + (Wr[1] - El[1])], sd === 'R' ? fb : -fb, z < 0 ? .84 : 0); return; } place('tay_tren', Sh, El, fb, z < 0 ? .84 : 0); if (A.g > .5 && C.img.nam_tay) place('nam_tay', Wr, [Wr[0] + (Wr[0] - El[0]), Wr[1] + (Wr[1] - El[1])], fb, z < 0 ? .84 : 0); else place('cang_tay', El, Wr, fb, z < 0 ? .84 : 0); }, 1); }   // hands: both thumbs on the body's front side, so a raised hand keeps the thumb / index on top (the L art is drawn thumb-left)
-    const propK = J.E.c.prop || a.cam || ve.cam, hr0 = (R.headR || 38) * s;
-    if (hand && (propK === 'dt' || propK === 'hop')) { const Hf = hands.L || hand, both = Math.hypot(hand.Hd[0] - Hf.Hd[0], hand.Hd[1] - Hf.Hd[1]) < hr0 * 2.6, hold = Hf.Hd[1] < hand.Hd[1] ? Hf : hand;   // phone / box held in the hands (one hand: the raised one)
-      const px = both ? (hand.Hd[0] + Hf.Hd[0]) / 2 : hold.Hd[0], py = (both ? (hand.Hd[1] + Hf.Hd[1]) / 2 : hold.Hd[1]) - hr0 * .25;
-      if (propK === 'dt') { push((both ? Math.max(hand.z, Hf.z) : hold.z) + .7, () => { x.save(); x.translate(px, py); x.rotate(-.12 * fb); x.fillStyle = '#15161b'; x.beginPath(); x.roundRect(-hr0 * .42, -hr0 * .78, hr0 * .84, hr0 * 1.56, hr0 * .14); x.fill();
-          x.fillStyle = '#d8e6ff'; x.beginPath(); x.roundRect(-hr0 * .35, -hr0 * .7, hr0 * .7, hr0 * 1.4, hr0 * .1); x.fill(); x.restore(); });
-        push(30.6, () => { const hc = Wd(J.Hc, J.thD), gx = (px + hc[0]) / 2, gy = (py + hc[1]) / 2; x.save(); x.globalCompositeOperation = 'lighter';               // screen light on the face
-          const q = x.createRadialGradient(gx, gy, hr0 * .2, gx, gy, hr0 * 3.4); q.addColorStop(0, 'rgba(110,160,255,.30)'); q.addColorStop(1, 'rgba(110,160,255,0)'); x.fillStyle = q; x.fillRect(gx - hr0 * 3.6, gy - hr0 * 3.6, hr0 * 7.2, hr0 * 7.2); x.restore(); }); }
-      else { const bx = (hand.Hd[0] + Hf.Hd[0]) / 2 - fb * hr0 * .45, by = (hand.Hd[1] + Hf.Hd[1]) / 2 - hr0 * .5;   // box: held against the chest, forearms tucked under it (box drawn over the hands)
-        push(Math.max(hand.z, Hf.z) + .7, () => { x.save(); x.translate(bx, by + hr0 * .15); x.fillStyle = '#c89a62'; x.fillRect(-hr0 * 1.3, -hr0 * .9, hr0 * 2.6, hr0 * 1.8); x.fillStyle = '#a87a46'; x.fillRect(-hr0 * 1.3, -hr0 * .9, hr0 * 2.6, hr0 * .3);
-          x.fillStyle = 'rgba(240,230,200,.8)'; x.fillRect(-hr0 * .2, -hr0 * .9, hr0 * .4, hr0 * 1.8); x.restore(); }); } }
+    const propK = J.E.c.prop || a.cam || ve.cam, hr0 = (R.headR || 38) * s, hp = C.tay_truoc ? (R.hand || 22) * s * 2.3 : hr0;   // props sized by the hand on big-head cut-outs (chibi head ≠ phone size)
+    if (hand && !TB && (propK === 'dt' || propK === 'hop')) { const Hf = hands.L || hand, both = Math.hypot(hand.Hd[0] - Hf.Hd[0], hand.Hd[1] - Hf.Hd[1]) < hp * 2.6, hold = Hf.Hd[1] < hand.Hd[1] ? Hf : hand;   // phone / box held in the hands (one hand: the raised one)
+      const px = both ? (hand.Hd[0] + Hf.Hd[0]) / 2 : hold.Hd[0], py = (both ? (hand.Hd[1] + Hf.Hd[1]) / 2 : hold.Hd[1]) - hp * .25;
+      if (propK === 'dt') {
+        // the phone faces the EYES: screen toward the face, its plane square to the gaze. Side / 3-4 views show the back + edge with a thin lit screen rim; a front view shows the back.
+        const hc = Wd(J.Hc, J.thD), side = Math.abs(Math.sin(J.thC)) > .45, ex = hc[0] + fb * hr0 * .45, ey = hc[1] + hr0 * .05;
+        const PL = hp * 1.56, PW = hp * .84, ga = Math.atan2(ey - py, ex - px), PD = Math.hypot(ex - px, ey - py), th = hp * .22;
+        push((both ? Math.max(hand.z, Hf.z) : hold.z) + .7, () => { x.save(); x.translate(px, py);
+          if (side) {   // held up at 45°: top end toward the upper corner the character faces, screen toward the face (a slice of the lit screen shows in 3/4)
+            if (C.tay_truoc) x.translate(fb * PL * .22, -PL * .05);   // short chibi arms: hold it a little out in front of the chin
+            x.rotate(fb * PI / 4); x.translate(0, -PL * .2); const w = PW * .62, sg = -fb;
+            x.fillStyle = '#15161b'; x.beginPath(); x.roundRect(-w / 2, -PL / 2, w, PL, w * .22); x.fill();
+            const sx0 = sg < 0 ? -w / 2 + w * .1 : -w / 2 + w * .32, sw = w * .58, gr = x.createLinearGradient(0, -PL / 2, 0, PL / 2); gr.addColorStop(0, '#e8f3ff'); gr.addColorStop(1, '#a9c8f5');
+            x.fillStyle = gr; x.beginPath(); x.roundRect(sx0, -PL / 2 + w * .14, sw, PL - w * .28, w * .1); x.fill();
+            x.fillStyle = 'rgba(255,255,255,.55)'; x.beginPath(); x.roundRect(sx0 + sw * .12, -PL / 2 + w * .3, sw * .5, PL * .08, 2); x.fill(); x.roundRect(sx0 + sw * .12, -PL / 2 + w * .3 + PL * .13, sw * .7, PL * .05, 2); x.fill(); }
+          else { x.rotate(-.08 * fb); x.fillStyle = '#15161b'; x.beginPath(); x.roundRect(-PW / 2, -PL / 2, PW, PL, hp * .14); x.fill();
+            x.fillStyle = '#3a3d48'; x.beginPath(); x.arc(-PW * .24, -PL * .36, hp * .08, 0, 7); x.fill(); }
+          x.restore(); });
+        if (!TB) push(30.6, () => { x.save(); x.globalCompositeOperation = 'screen';
+          const q = x.createRadialGradient(ex, ey, 0, ex, ey, hr0 * .75); q.addColorStop(0, 'rgba(120,170,255,.22)'); q.addColorStop(1, 'rgba(120,170,255,0)'); x.fillStyle = q; x.fillRect(ex - hr0, ey - hr0, hr0 * 2, hr0 * 2);
+          if (side) { x.translate(px, py); x.rotate(ga); const g2 = x.createLinearGradient(0, 0, PD, 0); g2.addColorStop(0, 'rgba(150,195,255,.22)'); g2.addColorStop(1, 'rgba(150,195,255,0)');
+            x.fillStyle = g2; x.beginPath(); x.moveTo(th * .5, -PL * .42); x.lineTo(PD, -hr0 * .32); x.lineTo(PD, hr0 * .32); x.lineTo(th * .5, PL * .42); x.closePath(); x.fill(); }
+          x.restore(); }); }
+      else { const bx = (hand.Hd[0] + Hf.Hd[0]) / 2 - fb * hp * .45, by = (hand.Hd[1] + Hf.Hd[1]) / 2 - hp * .5;   // box: held against the chest, forearms tucked under it (box drawn over the hands)
+        push(Math.max(hand.z, Hf.z) + .7, () => { x.save(); x.translate(bx, by + hp * .15); x.fillStyle = '#c89a62'; x.fillRect(-hp * 1.3, -hp * .9, hp * 2.6, hp * 1.8); x.fillStyle = '#a87a46'; x.fillRect(-hp * 1.3, -hp * .9, hp * 2.6, hp * .3);
+          x.fillStyle = 'rgba(240,230,200,.8)'; x.fillRect(-hp * .2, -hp * .9, hp * .4, hp * 1.8); x.restore(); }); } }
     if (hand && (J.E.c.prop === 'gay' || a.cam === 'gay' || ve.cam === 'gay')) push(hand.z + .2, () => { const H0w = hand.Hd, gx = H0w[0] + (H0w[0] - hand.El[0]) * .25;   // walking cane: hand → ground
       x.strokeStyle = '#3a2414'; x.lineWidth = 9 * s; x.lineCap = 'round'; x.beginPath(); x.moveTo(H0w[0], H0w[1] - 6 * s); x.lineTo(gx, at.y); x.stroke();
       x.strokeStyle = '#7a5232'; x.lineWidth = 5.5 * s; x.stroke(); x.beginPath(); x.arc(H0w[0] - 8 * s, H0w[1] - 6 * s, 8 * s, 0, PI, true); x.stroke(); });
     // head + face (eye set by expression / blink, mouth by viseme, glasses multiplied on top)
     const Nk = Wd(J.Nk, J.thC), Hc = Wd(J.Hc, J.thD);
     push(30, () => {
-      const { p, im, g, n } = pin('dau', fh), ai = Math.atan2(n[1] - g[1], n[0] - g[0]), as = Math.atan2(Hc[1] - Nk[1], Hc[0] - Nk[0]), sc = K0 * (p.ti_le || 1), w = im.width;
-      x.save(); x.translate(Nk[0], Nk[1]); x.rotate(as - ai); x.scale(sc, sc); x.translate(-g[0], -g[1]); x.drawImage(im, 0, 0);
+      // multi-view heads (cut-outs from xp ve-lai rig): pick the drawing nearest to the head yaw (goc + hy): front / 3-4 / profile / back; each view has its own face anchors and eye / mouth set (suffix @view); the back view has no face
+      const yaw = Math.abs(Math.atan2(Math.sin(J.thD), Math.cos(J.thD)));
+      let V = { ten: 'dau', hau: '', mat: C.mat }; if (C.dau_huong) { let best = 9; for (const v of C.dau_huong) if (C.manh[v.ten] && Math.abs((v.chon ?? v.yaw) - yaw) < best) { best = Math.abs((v.chon ?? v.yaw) - yaw); V = v; } }
+      // front / back views: a nod (X) does not spin the head in the picture plane — it stays upright (tilt Z kept), the face slides + squashes a little
+      const flat = C.dau_huong && (V.yaw < .5 || V.yaw > 2.6), nk0 = clamp(J.P.nk || 0, -.7, .7);
+      const { p, im, g, n } = pin(V.ten, fh), ai = Math.atan2(n[1] - g[1], n[0] - g[0]), as = flat ? -PI / 2 + (J.P.hr || 0) * fb : Math.atan2(Hc[1] - Nk[1], Hc[0] - Nk[0]), sc = K0 * (p.ti_le || 1), w = im.width;
+      x.save(); x.translate(Nk[0], Nk[1]); x.rotate(as - ai); x.scale(sc, sc * (flat ? 1 - Math.abs(nk0) * .07 : 1)); x.translate(-g[0], -g[1]); x.drawImage(im, 0, 0);
       const lt = tg - (a.t0g || 0); let bc = a.bcs[0].bc; for (const b of a.bcs) if (lt >= b.t) bc = b.bc;
-      const eyes = blinkAt(a, lt) > .5 ? 'mat_nham' : (C.bieu_cam[bc] || 'mat_binh'), vz = viseme(a.words, tg);
-      const mouth = vz.o > .12 ? C.mieng[vz.w < .8 ? 'o' : vz.w > 1.1 ? 'e' : vz.o > .7 ? 'a' : 'e'] : (C.mieng_bieu_cam[bc] || C.mieng.ngam);
+      const hau = V.hau ? '@' + V.hau : '', sfx = nm => nm && C.img[nm + hau] ? nm + hau : nm;
+      const eyes = sfx(blinkAt(a, lt) > .5 ? 'mat_nham' : (C.bieu_cam[bc] || 'mat_binh')), vz = viseme(a.words, tg);
+      const mouth = sfx(vz.o > .12 ? C.mieng[vz.w < .8 ? 'o' : vz.w > 1.1 ? 'e' : vz.o > .7 ? 'a' : 'e'] : (C.mieng_bieu_cam[bc] || C.mieng.ngam));
+      // pitch (X): eyes and mouth slide down on the face when the head nods down, up when it looks up
+      const pdy = flat ? nk0 * (C.mat.cui ?? 26) : 0;
       const at2 = (anchor, name, k, nx = 1, side = fh) => { if (!C.img[name]) return; const q = pin(name, side), ax = fh > 0 ? anchor[0] : w - anchor[0];
-        x.save(); x.translate(ax + (look ? look.eye[0] * 4 : 0), anchor[1] + (look ? look.eye[1] * 3 : 0)); x.scale(k * nx, k); x.drawImage(q.im, -q.g[0], -q.g[1]); x.restore(); };
-      const M = C.mat; at2(M.goc, eyes, M.co_mat, M.nen_x); at2(M.mieng, mouth, M.co_mieng, M.nen_x);
-      if (ve.kinh !== false && C.img.kinh) { x.save(); x.globalCompositeOperation = 'multiply'; at2(M.goc, 'kinh', M.co_kinh, M.nen_x, C.kinh_lat === false ? fh : -fh); x.restore(); }
+        x.save(); x.translate(ax + (look ? look.eye[0] * 4 : 0), anchor[1] + pdy + (look ? look.eye[1] * 3 : 0)); x.scale(k * nx, k); x.drawImage(q.im, -q.g[0], -q.g[1]); x.restore(); };
+      const M = V.mat ? { ...C.mat, ...V.mat } : null;
+      if (M) { at2(M.goc, eyes, M.co_mat, M.nen_x); at2(M.mieng, mouth, M.co_mieng, M.nen_x);
+        if (ve.kinh !== false && C.img.kinh) { x.save(); x.globalCompositeOperation = 'multiply'; at2(M.goc, 'kinh', M.co_kinh, M.nen_x, C.kinh_lat === false ? fh : -fh); x.restore(); } }
       x.restore(); });
     items.sort((p, q) => p.z - q.z); if (C.rf) { LY = 'rf'; for (const it of items) if (it.b) it.f(); }   // one continuous silhouette line under all body fills
     for (const it of items) { if (it.b && C.rm) { LY = 'rm'; it.f(); } LY = 'img'; it.f(); }
@@ -762,4 +818,16 @@
     return scene(x, [a], o.t || 0).nv;
   }
   MS.nv = { loadCutout, loadCast, CUT, actor, scene, draw, rootAt, headAt, addClips, CLIPS, EXPR, MAP, DEF, H0, RIG: BASE, DANG, rigOf, solve, sample, LOCO };
+  // joint screen positions at time t (pose editor handles, QA): same projection as the drawing (cut-out studio art or the stick/flat look)
+  function khop(a, t) {
+    const J = solve(a, t), at = { x: J.E.pa.x, y: J.E.pa.y }, C = a.ve && a.ve.kieu === 'anh' && CUT[a.ve.bo];
+    const fb = Math.sin(J.thC) >= 0 ? 1 : -1, CL = C ? C.rong_ngang ?? .9 : 0;
+    const W = (p, th) => C ? [at.x + fb * (p[0] + (p[2] || 0) * CL) * a.s, at.y - p[1] * a.s] : world(a, J, [p[0], p[1], p[2] || 0], th, at).slice(0, 2);
+    const o = { hong: W([J.hip[0], J.hip[1], 0], J.thH), nguc: W(J.S[3], J.thC), co: W(J.Nk, J.thC), dau: W(J.Hc, J.thD), nl: J.nl, P: J.P };
+    for (const s of ['R', 'L']) { const A = J.arm[s], L = J.leg[s], lat = (s === 'R' ? -1 : 1) * J.R.hipW;
+      if (A) { o['vai' + s] = W(A.Sh, J.thC); o['khuyu' + s] = W(A.El, J.thC); o['cotay' + s] = W(A.Wr, J.thC); }
+      o['goi' + s] = W([L.kn[0], L.kn[1], lat], J.thH); o['cochan' + s] = W([L.an[0], L.an[1], lat], J.thH); }
+    return o;
+  }
+  Object.assign(MS.nv, { khop, EASE, bez, easeOf });
 })();

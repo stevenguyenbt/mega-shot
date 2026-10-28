@@ -1,0 +1,110 @@
+<!doctype html><meta charset="utf-8"><title>Action preview — mega-shot</title>
+<style>
+ body{margin:0;background:#1b1f27;color:#e8e8ee;font:14px system-ui,sans-serif;display:flex;height:100vh;overflow:hidden}
+ #ds{flex:0 0 210px;border-right:1px solid #333;display:flex;flex-direction:column}
+ #loc{margin:8px;padding:6px 8px;background:#2a303b;color:#eee;border:1px solid #444;border-radius:6px}
+ #list{overflow:auto;flex:1;padding:0 6px 10px} .nhom{color:#ffd27a;font-size:12px;text-transform:uppercase;margin:10px 4px 4px}
+ .it{padding:5px 8px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:6px} .it:hover{background:#2a303b} .it.on{background:#c8862a;color:#111}
+ .it small{color:#889} .it.on small{color:#332}
+ #giua{flex:1;display:flex;flex-direction:column;min-width:0}
+ #thanh{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 10px;border-bottom:1px solid #333}
+ button,select,input{font:inherit;background:#2a303b;color:#eee;border:1px solid #444;border-radius:6px;padding:4px 8px} button:hover{background:#38404e}
+ #khung{flex:1;display:flex;align-items:center;justify-content:center;min-height:0} #c{height:100%;max-width:100%}
+ #dai{height:150px;width:100%;display:block;border-top:1px solid #333;background:#171a21}
+ #tt{color:#8fd;min-width:240px} label{color:#aab}
+</style>
+<body>
+<div id="ds"><input id="loc" placeholder="filter actions…"><div id="list"></div></div>
+<div id="giua">
+ <div id="thanh">
+  character <select id="nv"></select>
+  <select id="huong"><option value="1">face right</option><option value="-1">face left</option></select>
+  <select id="goc"><option>3-4</option><option>ngang</option><option>thang</option><option>lung</option><option>lung-3-4</option></select>
+  expression <select id="bc"><option value="">per clip</option></select>
+  speed <select id="tocdo"><option>0.25</option><option>0.5</option><option selected>1</option><option>1.5</option></select>
+  <label><input id="thu" type="checkbox"> try transition from</label><select id="tu"></select>
+  <select id="chuyen"><option value="">spring (default)</option></select> over <input id="mix" type="number" value="0.4" step="0.1" style="width:52px">s
+  <span style="color:#ffd27a">head</span> Y <input id="dY" type="range" min="-2.3" max="1.1" step=".05" value="0" style="width:90px" title="turn left / right (hy)">
+  X <input id="dX" type="range" min="-.7" max=".7" step=".05" value="0" style="width:70px" title="look up / down (nk)">
+  Z <input id="dZ" type="range" min="-.5" max=".5" step=".05" value="0" style="width:70px" title="tilt head (hr)">
+  <button class="hd" data-y=".95">front</button><button class="hd" data-y="0">3/4</button><button class="hd" data-y="-.55">side</button><button class="hd" data-y="-2.19">back</button><button id="hd0">↺</button>
+  <button id="dung">❚❚</button><button id="sua">✎ Open in the pose editor</button><span id="tt"></span>
+ </div>
+ <div id="khung"><canvas id="c" width="900" height="1000"></canvas></div>
+ <canvas id="dai" width="1800" height="300"></canvas>
+</div>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="nhanvat_clip_rieng.js"></script>
+<script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// Action preview: every clip (built-in nhanvat_clip.js + custom library nhanvat_clip_rieng.js) played on a chosen character, looping,
+// optionally entered FROM another clip with a timeline transition (`chuyen` bezier or the default spring) — ArtCraft-style strip transition preview.
+// Served by `xp dung-dang mo` (library characters via /nv/ds and /nv/<id>/spec.json). ?nv=<id> ?clip=<name>
+const q = new URLSearchParams(location.search), $ = id => document.getElementById(id), nv = MS.nv;
+const cv = $('c'), x = cv.getContext('2d'), dai = $('dai'), dx = dai.getContext('2d'), off = document.createElement('canvas'); off.width = 900; off.height = 1500; const og = off.getContext('2d');
+const KAI = { ten: 'Kai', phong_cach: 'anime-thanh-nien', tuoi: 'thieu-nien', gioi: 'nam', than_hinh: 'gay', da: '#fbe6d4', toc: { kieu: 'bom', mau: '#e8892e' }, mat: { mau: '#a8552e' },
+  ao: { kieu: 'thun', mau: '#d84a3a', chu: '' }, quan: { kieu: 'dai', mau: '#2e3a52' }, giay: { mau: '#f4f4f0', de: '#2a2a2a', day: '#2a2a2a' } };
+const TEN = { dung: 'idle breathing', 'dung-ngau': 'cool stand', chi: 'point', vay: 'wave', 'gai-dau': 'scratch head', dam: 'punch', 'do-don': 'guard', da: 'kick', 'ngoi-xom': 'squat', quy: 'kneel', nang: 'lift',
+  nem: 'throw', dao: 'dig', 'co-vu': 'cheer', 'vuon-vai': 'stretch', mua: 'dance', 'cui-chao': 'bow', khoc: 'cry', 'vo-tay': 'clap', 'ngoi-bo-goi': 'hug knees', 'chong-gay': 'lean on cane', nhay: 'jump',
+  nga: 'fall', 'khoanh-tay': 'fold arms', 'chong-nanh': 'hands on hips', 'suy-nghi': 'think', 'nhin-quanh': 'look around', 'tho-doc': 'pant', 'run-ray': 'tremble' };
+let ve, sel = q.get('clip') || 'dung', t0 = performance.now(), paused = false, tPause = 0, cache = {};
+const RIENG = new Set(window.__RIENG || []);   // names of the custom library clips (set by the generated nhanvat_clip_rieng.js)
+function lenOf(c) { const C = nv.CLIPS[c]; return C ? (C.len || 2) : 2; }
+function dsClip() { const f = $('loc').value.trim().toLowerCase(), all = Object.keys(nv.CLIPS).filter(k => !k.startsWith('_') && (nv.CLIPS[k].keys || nv.CLIPS[k].fn)).sort();
+  const g = { 'Custom (library)': all.filter(k => RIENG.has(k)), 'Built-in': all.filter(k => !RIENG.has(k)) }, L = $('list'); L.innerHTML = '';
+  for (const [ten, ks] of Object.entries(g)) { const v = ks.filter(k => !f || k.includes(f) || (TEN[k] || '').includes(f)); if (!v.length) continue;
+    const h = document.createElement('div'); h.className = 'nhom'; h.textContent = `${ten} · ${v.length}`; L.appendChild(h);
+    for (const k of v) { const C = nv.CLIPS[k], d = document.createElement('div'); d.className = 'it' + (k === sel ? ' on' : '');
+      d.innerHTML = `<span>${TEN[k] ? TEN[k] + ' <small>' + k + '</small>' : k}</span><small>${C.keys ? (+C.len).toFixed(1) + 's' : 'procedural'}${C.loop ? ' ⟳' : ''}${C.tren ? ' ↑' : ''}</small>`;
+      d.onclick = () => { sel = k; t0 = performance.now(); dsClip(); veDai(); }; L.appendChild(d); if (k === sel) setTimeout(() => d.scrollIntoView({ block: 'nearest' }), 0); } } }
+// head direction offsets (Y yaw = hy, X pitch = nk, Z roll = hr) added on top of every key of the played clip
+function voiDau(clip) { const y = +$('dY').value, xx = +$('dX').value, z = +$('dZ').value, C = nv.CLIPS[clip]; if (!(y || xx || z) || !C || !C.keys) return clip;
+  const { name, ...rest } = C; nv.addClips({ _xemdau: { ...rest, keys: C.keys.map(([t, v, e]) => [t, { ...v, hy: (v.hy || 0) + y, nk: (v.nk || 0) + xx, hr: (v.hr || 0) + z }, e]) } }); return '_xemdau'; }
+function actorFor(clip, from) { clip = voiDau(clip);
+  const hd = from ? [{ t: 0, clip: from }, { t: 1, clip, mix: +$('mix').value || .4, ...($('chuyen').value ? { chuyen: $('chuyen').value } : {}) }] : [{ t: 0, clip }];
+  return nv.actor({ id: 'nv', ve, x: 450, y: 1420, huong: +$('huong').value, goc: $('goc').value, ...($('bc').value ? { bc: $('bc').value } : {}), hd, lo_xo: false }); }
+const thu = () => $('thu').checked && $('tu').value && $('tu').value !== sel;
+function chuKy() { return (thu() ? 1 : 0) + Math.max(1, lenOf(sel)) + .5; }   // loop period: (from-clip 1 s) + clip + 0.5 s hold
+let TOP = 150;   // crop top for the current character: its standing height + room for raised arms / jumps
+function veVao(ctx, W, H, t, a) { og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 900, 1500); nv.scene(og, [a], t);
+  const top = TOP, sc = Math.min(W / 900, H / (1470 - top));
+  ctx.drawImage(off, 0, top, 900, 1470 - top, (W - 900 * sc) / 2, 0, 900 * sc, (1470 - top) * sc); }
+function frame(now) {
+  const sp = +$('tocdo').value, P = chuKy(), raw = paused ? tPause : ((now - t0) / 1000 * sp), t = raw % P;
+  x.fillStyle = '#20252f'; x.fillRect(0, 0, cv.width, cv.height); const gy = (1428 - TOP) * Math.min(cv.width / 900, cv.height / (1470 - TOP)); x.fillStyle = '#2c3340'; x.fillRect(0, gy, cv.width, cv.height);   // floor at the feet (y 1420) of the cropped view
+  const a = actorFor(sel, thu() ? $('tu').value : null), lt = thu() ? t : Math.min(t, lenOf(sel));
+  veVao(x, cv.width, cv.height, nv.CLIPS[sel] && nv.CLIPS[sel].loop ? t : lt, a);
+  const C = nv.CLIPS[sel]; $('tt').textContent = `${TEN[sel] || sel} · ${t.toFixed(2)} / ${P.toFixed(1)} s` + (thu() ? ` · from “${TEN[$('tu').value] || $('tu').value}” at 1.0 s` : '') + (C && C.bc ? ` · face ${C.bc}` : '');
+  requestAnimationFrame(frame); }
+function veDai() { const n = 6, W = dai.width / n; dx.fillStyle = '#171a21'; dx.fillRect(0, 0, dai.width, dai.height); const C = nv.CLIPS[sel], L = lenOf(sel);
+  for (let i = 0; i < n; i++) { const t = L * i / (C && C.loop ? n : n - 1), a = actorFor(sel, null); dx.save(); dx.translate(i * W, 0); veVao(dx, W, dai.height, t, a); dx.restore();
+    dx.fillStyle = '#ffd27a'; dx.font = '600 20px sans-serif'; dx.fillText(t.toFixed(2) + 's', i * W + 10, 26); } }
+// ---- controls ----
+for (const k of Object.keys(nv.EASE)) $('chuyen').add(new Option(k, k));
+for (const b of [...new Set([...Object.keys(nv.EXPR || {}), 'cuoi', 'vui', 'tu_tin', 'nham'])]) $('bc').add(new Option(b, b));
+for (const k of Object.keys(nv.CLIPS).filter(k => !k.startsWith('_') && nv.CLIPS[k].keys).sort()) $('tu').add(new Option(TEN[k] ? `${TEN[k]} (${k})` : k, k));
+$('tu').value = 'dung'; $('loc').oninput = dsClip;
+for (const id of ['huong', 'goc', 'bc']) $(id).onchange = veDai;
+$('dung').onclick = () => { paused = !paused; if (paused) tPause = (performance.now() - t0) / 1000 * +$('tocdo').value; else t0 = performance.now() - tPause * 1000 / +$('tocdo').value; $('dung').textContent = paused ? '▶' : '❚❚'; };
+$('sua').onclick = () => { const id = $('nv').value; location.href = 'xuong_dung_dang.html?clip=' + encodeURIComponent(sel) + (id !== '_kai' ? '&nv=' + id + (KIEU[id] === 'cat' ? '&cat=1' : '') : ''); };
+window.onkeydown = ev => { if (ev.target.tagName === 'INPUT') return; const it = [...document.querySelectorAll('.it')], i = it.findIndex(e => e.classList.contains('on'));
+  if (ev.key === 'ArrowDown' && it[i + 1]) it[i + 1].click(); if (ev.key === 'ArrowUp' && it[i - 1]) it[i - 1].click(); if (ev.key === ' ') { ev.preventDefault(); $('dung').onclick(); } };
+const KIEU = {};   // id → 'cat' for cut-out characters (xp ve-lai rig), else studio spec
+async function napNV(id) {
+  if (!cache[id]) { let v;
+    if (KIEU[id] === 'cat') v = { kieu: 'anh', bo: '/nv/' + id + '/bo/rig.json' };
+    else { let spec = KAI; if (id && id !== '_kai') { try { spec = await (await fetch('/nv/' + id + '/spec.json')).json(); } catch (e) {} } v = { kieu: 'anh', xuong: spec }; }
+    const cast = { nv: { ve: v } }; await nv.loadCast(cast); cache[id] = cast.nv.ve; }
+  ve = cache[id]; try { const a = nv.actor({ id: 'nv', ve, x: 450, y: 1420, hd: [{ t: 0, clip: 'dung' }], lo_xo: false }); og.clearRect(0, 0, 900, 1500); nv.scene(og, [a], 0);
+    const b = nv.vungAt(a, 0).toan_than; TOP = Math.max(0, Math.min(1100, b[1] - .45 * (1432 - b[1]))); } catch (e) { TOP = 150; }
+  veDai(); }
+$('nv').onchange = () => napNV($('nv').value);
+for (const id of ['dY', 'dX', 'dZ']) $(id).oninput = veDai;
+for (const b of document.querySelectorAll('.hd')) b.onclick = () => { $('dY').value = b.dataset.y; veDai(); };
+$('hd0').onclick = () => { $('dY').value = 0; $('dX').value = 0; $('dZ').value = 0; veDai(); };
+(async () => {
+  $('nv').add(new Option('Kai (sample)', '_kai')); try { for (const n of await (await fetch('/nv/ds')).json()) { KIEU[n.id] = n.kieu; $('nv').add(new Option(n.ten + (n.khoa ? ' 🔒' : '') + (n.kieu === 'cat' ? ' ✂' : ''), n.id)); } } catch (e) {}
+  const MAC_DINH = 'cau-be-mu';   // default character: the redrawn boy with the round hat (falls back to Kai when missing)
+  $('nv').value = q.get('nv') || (KIEU[MAC_DINH] ? MAC_DINH : '_kai');
+  await napNV($('nv').value); dsClip(); window.READY = true; requestAnimationFrame(frame);
+})();
+</script>

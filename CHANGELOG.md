@@ -5,6 +5,24 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-10-28
+
+### Added
+- `xp review`: first-3-seconds check (voice starts at once, hook sentence lands in ~3 s, frame 0 not empty, text on
+  screen by 1 s, picture moves) with frames saved to `build/soat/mo_dau_*.jpg`, and a reading-time check for titles,
+  labels and graphics (`--skip-read` to skip); report also as `build/soat/bao_cao.json`.
+- `xp check`: 6-question film review → `build/duyet_phim.md`.
+- `xp redraw` (old name `ve-lai`): redraw a flat/cel illustration as SVG in code — analyse, vectorize, line check,
+  recolour, extend the canvas, build a cut-out rig (`references/ve-lai.md`).
+- `xp pose-editor` (old name `dung-dang`): FK pose & clip editor for the 2D characters with a shared custom clip library
+  (`engine/core/nhanvat_clip_rieng.js`, `references/dung-dang.md`).
+- `xp cast-design` (old name `nhanvat`): AI design loop for code-drawn characters — description/photo → spec → review
+  sheet → score → lock (`references/characters-ai-loop.md`).
+- Character engine: new clips, joint limits and repair, new story sets in `truyen.js`; review sheet `xuong_soat.html`.
+
+### Credits
+- Ideas (no code or data) from ArtCraft (pose editor) and chaojifeng-video-design (opening and reading-time checks) — see THIRD_PARTY_NOTICES.md.
+
 ## [2.0.0] — 2026-10-27 — first open-source release
 
 ### Added

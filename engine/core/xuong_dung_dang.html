@@ -1,0 +1,171 @@
+<!doctype html><meta charset="utf-8"><title>Pose & clip editor — mega-shot</title>
+<style>
+ body{margin:0;background:#1b1f27;color:#e8e8ee;font:14px system-ui,sans-serif;display:flex;height:100vh;overflow:hidden}
+ #trai{flex:0 0 auto;position:relative} #c{display:block;cursor:crosshair;height:100vh;width:auto}
+ #phai{flex:1;padding:12px 14px;overflow:auto;border-left:1px solid #333}
+ h3{margin:14px 0 6px;font-size:13px;color:#ffd27a;text-transform:uppercase;letter-spacing:.04em}
+ button,select,input{font:inherit;background:#2a303b;color:#eee;border:1px solid #444;border-radius:6px;padding:4px 8px}
+ button:hover{background:#38404e} button.on{background:#c8862a;border-color:#e0a040;color:#111}
+ .hang{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0}
+ #khoa button{min-width:52px} #tl{width:100%} label{color:#aab}
+ .kenh{display:grid;grid-template-columns:110px 1fr 46px;gap:4px;align-items:center;font-size:12px}
+ .kenh input[type=range]{width:100%} textarea{width:100%;height:120px;background:#11141a;color:#bfe;border:1px solid #333;font:11px monospace}
+ #tb{color:#8fd;min-height:18px}
+</style>
+<body>
+<div id="trai"><canvas id="c" width="560" height="930"></canvas></div>
+<div id="phai">
+ <div class="hang"><b style="font-size:16px">FK pose & clip editor</b><span id="tb"></span></div>
+ <div class="hang">Drag the dots on the character: <b>elbow/knee</b> rotates shoulder/hip · <b>wrist/ankle</b> bends elbow/knee · <b>head</b> nods · <b>neck</b> bends the back · <b>hip</b> moves the body. Hold <b>Shift</b> = secondary channel (spread arm, tilt head, tilt hip).</div>
+ <h3>Clip</h3>
+ <div class="hang">Name <input id="ten" value="clip-moi" size="14"> length <input id="len" type="number" step=".1" value="1.2" style="width:64px">s
+  <label><input id="loop" type="checkbox" checked> loop</label><label><input id="tren" type="checkbox"> upper body only</label>
+  expression <select id="bc"></select></div>
+ <div class="hang">from existing clip <select id="nap"></select><button id="napB">Load</button>
+  angle <select id="goc"><option>3-4</option><option>ngang</option><option>thang</option></select>
+  <label><input id="lat" type="checkbox"> face left</label><label><input id="hon" type="checkbox" checked> ghost of neighbouring keys</label></div>
+ <h3>Time</h3>
+ <input id="tl" type="range" min="0" max="1.2" step=".01" value="0">
+ <div class="hang"><button id="play">▶ Play</button><span id="tt">0.00 s</span><button id="them">＋ Key here</button><button id="xoa">− Delete key</button>
+  <button id="chep">Copy previous key</button> curve into next key <select id="ez"></select></div>
+ <div class="hang" id="khoa"></div>
+ <h3>Planted feet</h3>
+ <div class="hang"><label><input id="pN" type="checkbox" checked> near foot</label><label><input id="pF" type="checkbox" checked> far foot</label>
+  <span style="color:#889">(turn off when jumping, kicking, sitting — a planted foot is held on the ground by IK)</span></div>
+ <h3>Channels of the selected key</h3><div id="kenh"></div>
+ <h3>Save</h3>
+ <div class="hang"><button id="luu">💾 Save to library</button><button id="xuat">Show JSON</button></div>
+ <textarea id="json" spellcheck="false"></textarea>
+</div>
+<script src="util.js"></script><script src="nhanvat.js"></script><script src="nhanvat_clip.js"></script><script src="nhanvat_clip_rieng.js"></script>
+<script src="hieuung_lop.js"></script><script src="xuong_nhanvat.js"></script><script src="xuong_anime.js"></script><script src="giaiphau.js"></script><script src="toc_nhanvat.js"></script>
+<script>
+// FK pose & clip editor for the code-drawn characters (nhanvat.js rig). Idea from ArtCraft's FK posing + timeline clip strips
+// (github.com/storytold/artcraft, MIT/Apache-2.0), rebuilt for this 2D rig: a handle does not need a hand-written sign convention —
+// dragging runs a small numeric search on the joint's channel so the joint follows the mouse, for any body type / facing / view.
+//   ?nv=<id> (library character, served by `xp dung-dang mo`) · ?spec=<url-encoded studio spec> · ?clip=<name> · ?soat=1 (headless QA strip)
+const q = new URLSearchParams(location.search), $ = id => document.getElementById(id), nv = MS.nv;
+const cv = $('c'), x = cv.getContext('2d'), off = document.createElement('canvas'); off.width = 900; off.height = 1500; const og = off.getContext('2d');
+const SC = .62, OX = 280 - 450 * SC, OY = 30 - 0;                                     // offscreen (900×1500, feet at y 1420) → view
+const toV = p => [OX + p[0] * SC, OY + (p[1] - 0) * SC], toO = (X, Y) => [(X - OX) / SC, (Y - OY) / SC];
+let ve, clip = { len: 1.2, loop: 1, keys: [[0, { ...nv.DEF }, undefined]] }, T = 0, sel = 0, playing = false, drag = null;
+// ---- channel groups (authored N = near / F = far side, like nhanvat_clip.js) ----
+const NHOM = [['Whole body', ['rot', 'dx', 'dy', 'hh', 'hf']], ['Back · head', ['sp', 'sb', 'tw', 'nk', 'hr', 'hy', 'sh']],
+  ['Near arm', ['aNp', 'aNa', 'aNe', 'gN']], ['Far arm', ['aFp', 'aFa', 'aFe', 'gF']], ['Near leg', ['lNp', 'lNk', 'lNf']], ['Far leg', ['lFp', 'lFk', 'lFf']]];
+// joint limits (anatomy): elbows / knees bend one way only, ankles / head / spine within a natural range — the drag search stays inside them
+const LIM = { aNe: [-.05, 2.7], aFe: [-.05, 2.7], lNk: [-.05, 2.6], lFk: [-.05, 2.6], lNf: [-.9, .9], lFf: [-.9, .9], nk: [-.9, .9], hr: [-.6, .6], hy: [-1.2, 1.2],
+  sp: [-.8, 1.6], sb: [-.6, .6], tw: [-1, 1], sh: [-.3, .6], aNa: [-.6, 1.6], aFa: [-.6, 1.6], lNp: [-1.2, 2.4], lFp: [-1.2, 2.4], rot: [-1.7, 1.7] };
+const RANGE = k => /^(dx|dy)$/.test(k) ? [-120, 120, 1] : k === 'hh' ? [0, 400, 1] : /^(hf|g[NF]|p[NF])$/.test(k) ? [0, 1, .01] : [...(LIM[k] || [-3.2, 3.2]), .01];
+const NHAN = { rot: 'lean whole body', dx: 'hip shift ↔', dy: 'hip shift ↕', hh: 'hip height (sit/lie)', hf: 'use hip height', sp: 'bend forward', sb: 'bend sideways', tw: 'twist chest',
+  nk: 'nod', hr: 'tilt head', hy: 'turn head', sh: 'shrug', aNp: 'shoulder (raise)', aNa: 'spread arm', aNe: 'bend elbow', gN: 'grip', aFp: 'shoulder (raise)', aFa: 'spread arm', aFe: 'bend elbow', gF: 'grip',
+  lNp: 'thigh (forward)', lNk: 'bend knee', lNf: 'ankle', lFp: 'thigh (forward)', lFk: 'bend knee', lFf: 'ankle' };
+// handles: joint (khop name, side N/F) → channel(s) searched while dragging; shift = secondary channel
+const TAY_CAM = [['dau', null, ['nk'], ['hr']], ['co', null, ['sp'], ['sb']], ['hong', null, ['dx', 'dy'], ['rot']],
+  ['khuyu', 'N', ['aNp'], ['aNa']], ['cotay', 'N', ['aNe'], ['aNa']], ['khuyu', 'F', ['aFp'], ['aFa']], ['cotay', 'F', ['aFe'], ['aFa']],
+  ['goi', 'N', ['lNp'], ['lNf']], ['cochan', 'N', ['lNk'], ['lNf']], ['goi', 'F', ['lFp'], ['lFf']], ['cochan', 'F', ['lFk'], ['lFf']]];
+// which screen side (R/L joints of khop) is the authored NEAR side: measured, not assumed — nudge the near shoulder / hip and see which joint moves
+let NEAR = null, NEAR_KEY = '';
+function nearSide() { const key = $('lat').checked + $('goc').value; if (NEAR && NEAR_KEY === key) return NEAR;
+  const K = clip.keys[0][1], keep = { aNp: K.aNp, lNp: K.lNp }, j0 = (dangKy(), nv.khop(actorAt(), clip.keys[0][0]));
+  K.aNp = (K.aNp || 0) + .8; K.lNp = (K.lNp || 0) + .5; const j1 = (dangKy(), nv.khop(actorAt(), clip.keys[0][0])); Object.assign(K, keep); dangKy();
+  const mv = (n, s) => Math.hypot(j1[n + s][0] - j0[n + s][0], j1[n + s][1] - j0[n + s][1]);
+  NEAR = { tay: mv('cotay', 'R') > mv('cotay', 'L') ? 'R' : 'L', chan: mv('cochan', 'R') > mv('cochan', 'L') ? 'R' : 'L' }; NEAR_KEY = key; return NEAR; }
+const sideOf = (o, s, k) => { if (s == null) return ''; const n = nearSide()[/goi|cochan/.test(k || '') ? 'chan' : 'tay']; return s === 'N' ? n : n === 'R' ? 'L' : 'R'; };
+// ---- clip ↔ engine ----
+const full = () => ({ ...(clip.co || {}), len: +clip.len, loop: clip.loop ? 1 : 0, ...(clip.tren ? { tren: 1 } : {}), ...(clip.bc ? { bc: clip.bc } : {}), keys: clip.keys.map(([t, v, e]) => e ? [t, v, e] : [t, v]) });
+function dangKy() { nv.addClips({ _sua: full() }); }
+function actorAt() { return nv.actor({ id: 'nv', ve, x: 450, y: 1420, huong: $('lat').checked ? -1 : 1, goc: $('goc').value, bc: clip.bc || 'binh', hd: [{ t: 0, clip: '_sua' }], lo_xo: false }); }
+function veAt(t, alpha = 1) { const a = actorAt(); og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 900, 1500); nv.scene(og, [a], t);
+  x.save(); x.globalAlpha = alpha; x.drawImage(off, OX, OY, 900 * SC, 1500 * SC); x.restore(); return a; }
+function render() {
+  dangKy(); x.fillStyle = '#20252f'; x.fillRect(0, 0, cv.width, cv.height); x.fillStyle = '#2c3340'; x.fillRect(0, OY + 1420 * SC, cv.width, cv.height);
+  if ($('hon').checked && !playing) { const ks = clip.keys.map(k => k[0]), i = ks.findIndex(k => k > T + 1e-3);
+    const prev = [...ks].reverse().find(k => k < T - 1e-3), next = i >= 0 ? ks[i] : null;
+    if (prev != null) { veAt(prev, .22); } if (next != null) { veAt(next, .14); } }
+  const a = veAt(T); if (playing || q.get('soat')) return;
+  const o = nv.khop(a, T); x.lineWidth = 2;
+  for (const [k, s] of TAY_CAM) { const p = o[k + sideOf(o, s, k)]; if (!p) continue; const [X, Y] = toV(p), act = drag && drag.k === k && drag.s === s;
+    x.fillStyle = s === 'F' ? 'rgba(120,180,255,.85)' : s === 'N' ? 'rgba(255,190,80,.95)' : 'rgba(140,255,170,.95)'; x.strokeStyle = '#111';
+    x.beginPath(); x.arc(X, Y, act ? 9 : 7, 0, 7); x.fill(); x.stroke(); }
+}
+// ---- numeric FK: move the channel(s) so the joint lands on the mouse ----
+function jointAt(k, s) { dangKy(); const o = nv.khop(actorAt(), T); return o[k + sideOf(o, s, k)]; }
+function keyAtT() { let i = clip.keys.findIndex(k => Math.abs(k[0] - T) < .015); if (i < 0) i = themKhoa(); return i; }
+function keo(k, s, chans, M) {
+  const i = keyAtT(), K = clip.keys[i][1], err = () => { const p = jointAt(k, s); return p ? Math.hypot(p[0] - M[0], p[1] - M[1]) : 1e9; };
+  for (let it = 0; it < 5; it++) for (const c of chans) { const [lo, hi] = RANGE(c), big = (hi - lo) / 12;
+    let best = err(), v0 = K[c] ?? 0;
+    for (const st of [big, big / 3, big / 10, big / 30, big / 90]) for (const d of [-1, 1]) { const v = Math.max(lo, Math.min(hi, v0 + d * st)); K[c] = v; const e = err(); if (e < best - .01) { best = e; v0 = v; } else K[c] = v0; }
+    K[c] = +v0.toFixed(c === 'dx' || c === 'dy' || c === 'hh' ? 1 : 3); }
+}
+// ---- keys ----
+function sampleNow() { dangKy(); return nv.sample(nv.CLIPS._sua, T); }
+function themKhoa() { const v = sampleNow(), j = clip.keys.findIndex(k => k[0] > T); const row = [+T.toFixed(3), v, undefined];
+  if (j < 0) clip.keys.push(row); else clip.keys.splice(j, 0, row); sel = clip.keys.indexOf(row); return sel; }
+function veKhoa() { const b = $('khoa'); b.innerHTML = ''; clip.keys.forEach((k, i) => { const e = document.createElement('button'); e.textContent = k[0].toFixed(2) + 's' + (k[2] ? ' · ' + k[2] : '');
+  if (i === sel) e.className = 'on'; e.onclick = () => { sel = i; T = k[0]; $('tl').value = T; dongBo(); }; b.appendChild(e); }); }
+function veKenh() { const d = $('kenh'); d.innerHTML = ''; const K = clip.keys[sel] && clip.keys[sel][1]; if (!K) return;
+  for (const [ten, ks] of NHOM) { const h = document.createElement('div'); h.style.cssText = 'margin:6px 0 2px;color:#9ab'; h.textContent = ten; d.appendChild(h);
+    for (const k of ks) { const [lo, hi, st] = RANGE(k), r = document.createElement('div'); r.className = 'kenh';
+      r.innerHTML = `<span>${NHAN[k] || k} <small style="color:#667">${k}</small></span><input type=range min=${lo} max=${hi} step=${st} value=${K[k] ?? 0}><span>${(+(K[k] ?? 0)).toFixed(2)}</span>`;
+      const inp = r.children[1]; inp.oninput = () => { K[k] = +inp.value; r.children[2].textContent = (+inp.value).toFixed(2); render(); }; d.appendChild(r); } }
+  $('ez').value = clip.keys[sel][2] || ''; $('pN').checked = (K.pN ?? 1) > .5; $('pF').checked = (K.pF ?? 1) > .5; }
+function dongBo() { $('tt').textContent = T.toFixed(2) + ' s'; $('tl').max = clip.len; veKhoa(); veKenh(); render(); }
+// ---- UI wiring ----
+for (const [v, t] of [['', 'smooth (spline)'], ['lin', 'linear'], ['giu', 'hold (step)'], ...Object.keys(nv.EASE).filter(k => k !== 'lin').map(k => [k, k])]) $('ez').add(new Option(t, v));
+for (const b of Object.keys(nv.EXPR || { binh: 1 })) $('bc').add(new Option(b, b));
+for (const c of Object.keys(nv.CLIPS).filter(c => !c.startsWith('_') && nv.CLIPS[c].keys).sort()) $('nap').add(new Option(c, c));
+$('ez').onchange = () => { if (clip.keys[sel]) clip.keys[sel][2] = $('ez').value || undefined; veKhoa(); render(); };
+$('tl').oninput = () => { T = +$('tl').value; const i = clip.keys.findIndex(k => Math.abs(k[0] - T) < .015); if (i >= 0) sel = i; dongBo(); };
+$('them').onclick = () => { themKhoa(); dongBo(); };
+$('xoa').onclick = () => { if (clip.keys.length > 1) { clip.keys.splice(sel, 1); sel = Math.max(0, sel - 1); dongBo(); } };
+$('chep').onclick = () => { if (sel > 0) { clip.keys[sel][1] = { ...clip.keys[sel - 1][1] }; dongBo(); } };
+$('len').onchange = () => { clip.len = Math.max(.1, +$('len').value); dongBo(); };
+$('loop').onchange = () => { clip.loop = $('loop').checked; render(); }; $('tren').onchange = () => { clip.tren = $('tren').checked; };
+$('bc').onchange = () => { clip.bc = $('bc').value; render(); };
+for (const id of ['goc', 'lat', 'hon']) $(id).onchange = render;
+for (const s of ['N', 'F']) $('p' + s).onchange = () => { const K = clip.keys[sel][1]; K['p' + s] = $('p' + s).checked ? 1 : 0; render(); };
+$('napB').onclick = () => napClip($('nap').value);
+function napClip(ten) { const c = nv.CLIPS[ten]; if (!c || !c.keys) return; const { keys, len, loop, tren, bc, name, fn, ...co } = c;   // co: the clip's other flags (prop, ngoi, tay, mat, vao…) carried through edit / save / QA strip
+  clip = { len: c.len, loop: !!c.loop, tren: !!c.tren, bc: c.bc, co, keys: c.keys.map(([t, v, e]) => [t, { ...v }, e]) };
+  $('ten').value = ten.startsWith('_') ? 'clip-moi' : ten + '-2'; $('len').value = c.len; $('loop').checked = !!c.loop; $('tren').checked = !!c.tren; if (c.bc) $('bc').value = c.bc; sel = 0; T = 0; $('tl').value = 0; dongBo(); }
+let t0p = 0; $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '❚❚ Stop' : '▶ Play'; t0p = performance.now() - T * 1000; if (playing) requestAnimationFrame(chay); else dongBo(); };
+function chay(now) { if (!playing) return; T = (now - t0p) / 1000; if (T > clip.len) { if (clip.loop) { t0p = now; T = 0; } else { T = clip.len; playing = false; $('play').textContent = '▶ Play'; dongBo(); return; } }
+  $('tl').value = T; $('tt').textContent = T.toFixed(2) + ' s'; render(); requestAnimationFrame(chay); }
+// export: keys as DIFFS from the previous key (nhanvat_clip.js carries channels over), rounded
+function xuatClip() { const f = full(); let prev = { ...nv.DEF }; const keys = f.keys.map(([t, v, e]) => { const d = {};
+    for (const k in v) { if (k[0] === '_' || typeof v[k] !== 'number') continue; const r = +v[k].toFixed(3); if (Math.abs(r - (prev[k] ?? 0)) > 1e-3) d[k] = r; }
+    prev = { ...prev, ...v }; return e ? [+t.toFixed(3), d, e] : [+t.toFixed(3), d]; });
+  return { ...f, keys, nguon: 'xuong_dung_dang.html' }; }
+$('xuat').onclick = () => { $('json').value = JSON.stringify({ [$('ten').value]: xuatClip() }, null, 1); };
+$('luu').onclick = async () => { const ten = $('ten').value.trim().replace(/\s+/g, '-'); if (!ten) return;
+  try { const r = await fetch('/luu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ten, clip: xuatClip() }) });
+    $('tb').textContent = r.ok ? `saved “${ten}” — use it in video.yaml: clip: ${ten}` : 'save failed: ' + (await r.text()); }
+  catch (e) { $('xuat').onclick(); $('tb').textContent = 'no save server (open with `xp dung-dang mo`) — copy the JSON below'; } };
+// ---- drag ----
+const evO = ev => { const b = cv.getBoundingClientRect(), k = cv.width / b.width; return toO((ev.clientX - b.left) * k, (ev.clientY - b.top) * k); };   // canvas is CSS-scaled to the window height
+cv.onmousedown = ev => { const M = evO(ev); dangKy(); const o = nv.khop(actorAt(), T); let best = null;
+  for (const [k, s, ch, sh] of TAY_CAM) { const p = o[k + sideOf(o, s, k)]; if (!p) continue; const d = Math.hypot(p[0] - M[0], p[1] - M[1]); if (d < 26 / SC && (!best || d < best.d)) best = { d, k, s, ch, sh }; }
+  if (best) { drag = best; keyAtT(); } };
+window.onmousemove = ev => { if (!drag) return; keo(drag.k, drag.s, ev.shiftKey ? drag.sh : drag.ch, evO(ev)); render(); };
+window.onmouseup = () => { if (drag) { drag = null; dongBo(); } };
+window.onkeydown = ev => { if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA') return; if (ev.key === ' ') { ev.preventDefault(); $('play').onclick(); } if (ev.key === 'k') $('them').onclick(); };
+// ---- QA strip (headless): window.dai(n) → n frames side by side on the canvas ----
+window.dai = async n => { const W = 300, H = 520; cv.width = W * n; cv.height = H; x.fillStyle = '#20252f'; x.fillRect(0, 0, cv.width, cv.height); dangKy();
+  for (let i = 0; i < n; i++) { const t = clip.len * i / (clip.loop ? n : n - 1); const a = actorAt(); og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, 900, 1500); nv.scene(og, [a], t);
+    x.drawImage(off, 0, 160, 900, 1340, i * W, 0, W, W * 1340 / 900); x.fillStyle = '#ffd27a'; x.font = '600 18px sans-serif'; x.fillText(t.toFixed(2) + 's', i * W + 10, 24); } return 1; };
+// ---- boot ----
+(async () => {
+  let spec = q.get('spec') ? JSON.parse(q.get('spec')) : null;
+  if (!spec && !q.get('nv')) { try { const ds = await (await fetch('/nv/ds')).json(), d = ds.find(n => n.id === 'cau-be-mu');   // default character: the round-hat boy
+      if (d) { q.set('nv', d.id); if (d.kieu === 'cat') q.set('cat', '1'); } } catch (e) {} }
+  if (!spec && q.get('nv') && !q.get('cat')) { try { spec = await (await fetch('/nv/' + q.get('nv') + '/spec.json')).json(); } catch (e) {} }
+  if (!spec) spec = { ten: 'Kai', phong_cach: 'anime-thanh-nien', tuoi: 'thieu-nien', gioi: 'nam', than_hinh: 'gay', da: '#fbe6d4', toc: { kieu: 'bom', mau: '#e8892e' }, mat: { mau: '#a8552e' },
+    ao: { kieu: 'thun', mau: '#d84a3a', chu: '' }, quan: { kieu: 'dai', mau: '#2e3a52' }, giay: { mau: '#f4f4f0', de: '#2a2a2a', day: '#2a2a2a' } };
+  const cast = { nv: { ve: q.get('cat') ? { kieu: 'anh', bo: '/nv/' + q.get('nv') + '/bo/rig.json' } : { kieu: 'anh', xuong: spec } } }; await nv.loadCast(cast); ve = cast.nv.ve;
+  if (q.get('clip')) napClip(q.get('clip')); else napClip('dung');
+  if (q.get('clip') && !nv.CLIPS[q.get('clip')]) $('tb').textContent = 'no such clip: ' + q.get('clip');
+  $('ten').value = q.get('ten') || (q.get('clip') && nv.CLIPS[q.get('clip')] && nv.CLIPS[q.get('clip')].nguon ? q.get('clip') : $('ten').value);
+  window.READY = true; dongBo();
+})();
+</script>
