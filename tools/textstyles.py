@@ -29,7 +29,7 @@ def main(a, X):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     only = set(x.strip() for x in (a.only or '').split(',') if x.strip()); made = {'sub': [], 'title': []}
     with sync_playwright() as pw:
-        b = pw.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist']); pg = b.new_page(viewport={'width': 1080, 'height': 1920})
+        b = pw.chromium.launch(args=__import__('hw').chromium_args()); pg = b.new_page(viewport={'width': 1080, 'height': 1920})
         pg.goto(f'http://127.0.0.1:{srv.server_port}/textfx_demo.html'); pg.wait_for_function('window.draw && window.MS && MS.tfx')
         ids = pg.evaluate('({sub: MS.tfx.SUB_IDS, title: MS.tfx.TITLE_IDS, sd: SUB_DUR, td: TITLE_DUR})')
         for kind, dur in (('sub', ids['sd']), ('title', ids['td'])):

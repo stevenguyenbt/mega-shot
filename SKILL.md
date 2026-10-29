@@ -4,7 +4,7 @@ description: "Makes finished narrated videos from an idea, driven by one video.y
 license: MIT
 compatibility: "Needs a terminal agent that can run shell commands; uv + FFmpeg; Chromium via Playwright; optional VoiceStudio (local TTS), Node.js, Blender; network access for stock footage/music search and optional downloads."
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
   author: "stevenguyenbt"
   homepage: "https://github.com/stevenguyenbt/mega-shot"
 ---

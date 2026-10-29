@@ -479,8 +479,7 @@ class H(http.server.BaseHTTPRequestHandler):
             if u.path == '/api/them-tap': return self.send(200, {'tap': them_tap(safe_dir(b['p']))})
             if u.path == '/api/mo-thu-muc':
                 d = safe_dir(b['p'])
-                if os.name == 'nt': os.startfile(d)
-                else: subprocess.Popen(['xdg-open', d])
+                __import__('hw').open_path(d)
                 return self.send(200, {'ok': 1})
             self.send(404, {'loi': 'not found'})
         except (KeyError, ValueError) as e: self.send(400, {'loi': str(e)})

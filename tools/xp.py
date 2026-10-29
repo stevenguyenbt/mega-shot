@@ -149,15 +149,21 @@ class VoiceStudio:
         return r.get('text', ''), [[w['word'], round(w['start'], 3), round(w['end'], 3)] for w in r.get('words') or []]
 
 class NgheLai:
-    """One faster-whisper worker (tools/nghe.py, CPU) per xp run: the model loads once (~3 s), then ~0.5 s per second of audio.
-    Model: env MS_ASR_MODEL (default small — already cached; medium/large-v3 = more accurate, slower)."""
+    """One speech-recognition worker (tools/nghe.py) per xp run: the model loads once, then each line takes a fraction of its length.
+    Backend/model/device are picked for this computer by tools/hw.py (mlx-whisper on Apple Silicon, CUDA on big NVIDIA GPUs,
+    faster-whisper int8 on the CPU otherwise); override with MS_ASR_BACKEND / MS_ASR_MODEL / MS_ASR_DEVICE."""
     _w = None
     def __init__(self, lang):
         here = os.path.dirname(os.path.abspath(__file__)); self.lang = lang
-        self.p = subprocess.Popen(['uv', 'run', '--quiet', '--with', 'faster-whisper', '--with', 'numpy', 'python', os.path.join(here, 'nghe.py'), '--model', os.environ.get('MS_ASR_MODEL', 'small')],
+        sys.path.insert(0, here); import hw
+        pl = hw.asr_plan(); w = [x for pkg in hw.asr_packages(pl) for x in ('--with', pkg)]
+        log(f"  listen-back: {pl['backend']} · {pl['model']} · {pl['device']} — {pl['why']}")
+        self.p = subprocess.Popen(['uv', 'run', '--quiet', '--no-project', *w, 'python', os.path.join(here, 'nghe.py'), '--backend', pl['backend'], '--model', pl['model'],
+                                   '--device', pl['device'], '--compute', pl['compute'], '--threads', str(pl['threads']), '--fallback', pl['fallback']],
                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
         hi = json.loads(self.p.stdout.readline() or '{}')
-        if 'ready' not in hi: raise RuntimeError('could not start tools/nghe.py (faster-whisper)')
+        if 'ready' not in hi: raise RuntimeError('could not start tools/nghe.py (speech recognition)')
+        if 'fallback' in hi['ready']: log(f"  listen-back fell back to {hi['ready']}")
         import atexit; atexit.register(self.dong)                                 # never leave the worker (uv + python) running after xp exits
     def dong(self):
         try:
@@ -629,7 +635,8 @@ def browser(page='film.html'):
     from playwright.sync_api import sync_playwright
     srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Handler, directory=os.getcwd())); srv.root = find_root('.')
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    pw = sync_playwright().start(); b = pw.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'])
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import hw
+    pw = sync_playwright().start(); b = pw.chromium.launch(args=hw.chromium_args() + ['--enable-unsafe-swiftshader'])
     pg = b.new_page(viewport={'width': 1920, 'height': 1920})
     pg.on('console', lambda m: print('[page]', m.text) if m.type in ('error', 'warning') else None)
     errs = []; pg.on('pageerror', lambda e: (print('[page error]', e), errs.append(str(e))))
@@ -1261,7 +1268,8 @@ def cmd_grade(a):
 def find_blender():
     import glob
     if os.environ.get('MS_BLENDER'): return os.environ['MS_BLENDER']
-    c = sorted(glob.glob(os.path.join(find_root('.'), '.mega-shot', 'tools', 'blender-*', 'blender.exe')) + glob.glob(os.path.join(find_root('.'), '.mega-shot', 'tools', 'blender-*', 'blender')))
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import hw
+    c = hw.blender_paths(os.path.join(find_root('.'), '.mega-shot'))
     if c: return c[-1]
     w = shutil.which('blender')
     if w: return w
@@ -1325,7 +1333,7 @@ def main():
     ap = argparse.ArgumentParser(prog='xp', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter); sp = ap.add_subparsers(dest='cmd', required=True, metavar='command')
     mod = lambda name: (lambda a: (sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))), __import__(name).main(a, sys.modules[__name__])))
     p = sp.add_parser('setup', help='check prerequisites, fix what is safe, list what needs the user (run first)')
-    p.add_argument('--install', help='comma list of approved items: ffmpeg, chromium, three, fonts, huashu, hyperframes, composer, birefnet, voicestudio'); p.add_argument('--policy', action='store_true', help='create .mega-shot/chinh_sach.json (only after the user agreed)')
+    p.add_argument('--install', help='comma list of approved items: ffmpeg, chromium, three, fonts, whisper, huashu, hyperframes, composer, birefnet, voicestudio'); p.add_argument('--policy', action='store_true', help='create .mega-shot/chinh_sach.json (only after the user agreed)')
     p.add_argument('--json', action='store_true'); p.add_argument('--quick', action='store_true', help='skip the browser test'); p.add_argument('--no-launch', action='store_true', help='do not start VoiceStudio')
     p.set_defaults(f=mod('setup'))
     p = sp.add_parser('new', help='create videos/<name> from a template'); p.add_argument('ten', metavar='name'); p.add_argument('--format', dest='khung', default='9x16', choices=list(FORMATS))

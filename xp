@@ -1,3 +1,11 @@
 #!/usr/bin/env bash
-# mega-shot · xp — command-line video studio (needs uv and ffmpeg)
-exec uv run --quiet --no-project --with playwright==1.63.0 --with pyyaml --with pillow --with numpy --with ruamel.yaml python "$(dirname "$0")/tools/xp.py" "$@"
+# mega-shot · xp — command-line video studio (needs uv and ffmpeg; ./install.sh sets both up on macOS/Linux)
+# Apps started from the macOS Dock/Finder (Antigravity, Cursor, Codex app…) often get a minimal PATH without Homebrew
+# or ~/.local/bin, so add the usual install locations before looking for uv / ffmpeg.
+export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.cargo/bin"
+UV="$(command -v uv)"
+if [ -z "$UV" ]; then
+  echo "[xp] ERROR: uv not found — run $(dirname "$0")/install.sh, or install it: https://docs.astral.sh/uv/getting-started/installation/" >&2
+  exit 1
+fi
+exec "$UV" run --quiet --no-project --with playwright==1.63.0 --with pyyaml --with pillow --with numpy --with ruamel.yaml python "$(dirname "$0")/tools/xp.py" "$@"

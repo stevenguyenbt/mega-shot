@@ -89,6 +89,19 @@ Tested on Windows 11. macOS and Linux work for the core pipeline (setup handles 
 
 ## Install
 
+**macOS / Linux — one command** (asks before each download; `--yes` accepts the recommended set):
+
+```bash
+git clone https://github.com/stevenguyenbt/mega-shot ~/mega-shot && ~/mega-shot/install.sh
+```
+
+It installs uv, FFmpeg (via Homebrew on macOS), Chromium for rendering, the fonts and the speech-recognition model that
+fits your computer (mlx-whisper on the GPU of Apple Silicon Macs; faster-whisper elsewhere, sized by your RAM/cores/GPU),
+links the skill into your AI agents and creates `~/mega-shot-videos` for your projects. `--with-voicestudio` also
+installs the narration app. Tested on an Apple Silicon Mac in CI.
+
+**Windows** (or any OS, step by step):
+
 ```bash
 git clone https://github.com/stevenguyenbt/mega-shot ~/mega-shot
 ~/mega-shot/xp agents install        # Claude Code, Codex, Antigravity, Gemini CLI, Cursor (Windows: xp.cmd)

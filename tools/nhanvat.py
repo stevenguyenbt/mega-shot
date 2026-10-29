@@ -42,7 +42,7 @@ class Trang:
         eng = os.path.join(X.SKILL, 'engine', 'core')
         self.srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(type('Q', (http.server.SimpleHTTPRequestHandler,), {'log_message': lambda *x: None}), directory=eng))
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
-        self.pw = sync_playwright().start(); self.b = self.pw.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'])
+        self.pw = sync_playwright().start(); self.b = self.pw.chromium.launch(args=__import__('hw').chromium_args())
         self.pg = self.b.new_page(viewport={'width': 1600, 'height': 1000})   # GPU canvas: the software one crashes on the studio's layer effects
         self.pg.on('pageerror', lambda e: X.log(f'⚠ page error: {e}'))
         self.pg.on('console', lambda m: X.log('[page]', m.text) if m.type in ('error', 'warning') else None)

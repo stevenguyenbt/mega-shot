@@ -6,7 +6,7 @@ user (one question per decision) and only then re-run with the approved flags.
 
   xp setup                         check everything, start VoiceStudio if it is installed but not running
   xp setup --json                  same, machine-readable (also saved to .mega-shot/setup_status.json)
-  xp setup --install fonts,three   download/install approved items (ids: ffmpeg, chromium, three, fonts, huashu, hyperframes, composer, birefnet, voicestudio)
+  xp setup --install fonts,three   download/install approved items (ids: ffmpeg, chromium, three, fonts, whisper, huashu, hyperframes, composer, birefnet, voicestudio)
   xp setup --policy                create .mega-shot/chinh_sach.json (auto-download policy) — only after the user agreed
   xp setup --quick                 skip the browser launch test (faster)
 
@@ -28,6 +28,8 @@ INSTALL = {
                     'size': '~150 MB', 'license': 'Apache-2.0 (HyperFrames), GSAP standard licence, ISC/BSD (d3-geo, topojson), public domain (Natural Earth)'},
     'composer': {'what': 'huashu-motion composer + real instrument samples for original music (`xp nhac`): git clone + sample build into .mega-shot/',
                  'size': '~300 MB', 'license': 'MIT (code), CC0 / CC BY (samples — see the huashu-motion repo)'},
+    'whisper':  {'what': 'speech-recognition model for the narration check, chosen for this computer (mlx-whisper on Apple Silicon, faster-whisper elsewhere)',
+                 'size': 'see the report (75 MB – 1.6 GB)', 'license': 'MIT (OpenAI Whisper weights)'},
     'birefnet': {'what': 'BiRefNet background-removal model (2.5D stills, thumbnail cut-outs) via rembg', 'size': '~973 MB', 'license': 'MIT'},
     'voicestudio': {'what': 'VoiceStudio desktop app (local voice cloning + TTS + Whisper, API :3900) from github.com/debpalash/VoiceStudio — Windows/macOS/Linux; macOS: xattr -cr',
                     'size': '~215–275 MB + voice models on first launch', 'license': 'AGPL-3.0'},
@@ -46,6 +48,15 @@ DEFAULT_POLICY = {
     'gioi_han_mb_moi_video': 1024,
     'ghi_chu': 'Created by `xp setup --policy` after the user agreed. Extra sources per video: nguon_them in video.yaml.',
 }
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import hw as HW
+
+def _asr_cached(pl):
+    """Is the planned Whisper model already on disk? (Hugging Face cache, used by both faster-whisper and mlx-whisper)"""
+    hub = os.environ.get('HF_HUB_CACHE') or os.path.join(os.environ.get('HF_HOME') or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface'), 'hub')
+    m = pl['model']; repo = m if '/' in m else f'Systran/faster-whisper-{m}' if m != 'large-v3-turbo' else 'mobiuslabsgmbh/faster-whisper-large-v3-turbo'
+    d = os.path.join(hub, 'models--' + repo.replace('/', '--'), 'snapshots')
+    return os.path.isdir(d) and any(os.listdir(d))
 
 def huashu_dir(skill):
     """huashu-art-motion: $HUASHU_SKILL, a sibling skill folder, or vendor/huashu-art-motion inside this repo."""
@@ -152,7 +163,7 @@ def _browser_probe():
     srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=d))
     threading.Thread(target=srv.serve_forever, daemon=True).start()       # WebCodecs needs a secure context: http://127.0.0.1 is one, about:blank is not
     with sync_playwright() as pw:
-        b = pw.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'])
+        b = pw.chromium.launch(args=__import__('hw').chromium_args())
         pg = b.new_page(); pg.goto(f'http://127.0.0.1:{srv.server_port}/index.html')
         hw = pg.evaluate("""async () => { if (!('VideoEncoder' in window)) return 'none';
           for (const h of ['prefer-hardware', 'prefer-software']) { try { const r = await VideoEncoder.isConfigSupported({ codec: 'avc1.640033', width: 1920, height: 1080, bitrate: 30e6, framerate: 30, hardwareAcceleration: h }); if (r.supported) return h; } catch (e) {} }
@@ -187,7 +198,15 @@ def check(X, root, quick=False, launch=True):
         drv = re.findall(r',\s*([\d.]+)\s*,', smi); major = float(drv[0].split('.')[0]) if drv else 0
         add('gpu', 'NVIDIA GPU / driver', OK if major >= 610 else INFO, smi, 'VoiceStudio, WebCodecs; NVENC in ffmpeg needs driver ≥ 610',
             '' if major >= 610 else 'Optional: update the NVIDIA driver to ≥ 610 to enable NVENC (https://www.nvidia.com/Download/index.aspx)', None if major >= 610 else 'manual-optional')
-    else: add('gpu', 'NVIDIA GPU / driver', INFO, 'nvidia-smi not found', 'VoiceStudio runs much faster on an NVIDIA GPU')
+    elif HW.profile()['apple_silicon']:
+        P = HW.profile(); add('gpu', 'Apple Silicon GPU (Metal)', OK, f"{P['chip'] or 'Apple Silicon'} · {P['ram_gb']:.0f} GB unified memory", 'VoiceStudio (MPS), mlx-whisper, WebCodecs/VideoToolbox')
+        if P.get('rosetta'): add('rosetta', 'Python architecture', NEED, 'x86_64 under Rosetta', 'ML runs 3–10× slower and mlx is unavailable',
+                                 'Reinstall uv for arm64 (curl -LsSf https://astral.sh/uv/install.sh | sh from a native arm64 Terminal), then uv python install', 'manual')
+    else: add('gpu', 'NVIDIA GPU / driver', INFO, 'nvidia-smi not found', 'VoiceStudio runs much faster on an NVIDIA GPU (or an Apple Silicon Mac)')
+    pl = HW.asr_plan(); have = _asr_cached(pl)
+    add('whisper', 'Speech recognition (listen-back)', OK if have else OPT, f"{pl['backend']} · {pl['model'].split('/')[-1]} · {pl['device']}" + ('' if have else f" · ~{pl['download_mb']} MB to download"),
+        'checks every narrated line and gives word timestamps — ' + pl['why'],
+        '' if have else 'xp setup --install whisper   (otherwise downloaded automatically on the first xp narrate)', None if have else 'install')
 
     # --- narration ---
     up = _voicestudio_up(); exe = _voicestudio_exe(); started = False
@@ -227,14 +246,15 @@ def check(X, root, quick=False, launch=True):
     fdir = os.path.join(ms, 'fonts'); miss = [f for f in FONTS if not os.path.exists(os.path.join(fdir, f))]
     add('fonts', 'Thumbnail fonts', OK if not miss else OPT, 'present' if not miss else f'missing {len(miss)} files', 'thumbnails with full Vietnamese diacritics',
         '' if not miss else 'xp setup --install fonts', None if not miss else 'install')
-    rock = os.path.exists(os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'ROCKEB.TTF'))
+    rock = any(os.path.exists(f) for f in (os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'ROCKEB.TTF'), '/System/Library/Fonts/Supplemental/Rockwell.ttc',
+                                           '/Library/Fonts/Rockwell.ttc', os.path.expanduser('~/Library/Fonts/ROCKEB.TTF')))
     add('rockwell', 'Rockwell Extra Bold', OK if rock else INFO, 'present' if rock else 'not installed (Georgia is used instead)', 'poster-style thumbnail titles')
     three = os.path.exists(os.path.join(skill, 'engine', 'node_modules', 'three', 'build', 'three.module.js'))
     add('three', 'three.js', OK if three else OPT, 'present' if three else 'not installed', '3D template (threejs) only',
         '' if three else 'xp setup --install three   (needs Node.js/npm)', None if three else 'install')
-    cand =os.environ.get('MS_BLENDER') or shutil.which('blender') or next(iter(glob.glob(os.path.join(ms, 'tools', 'blender-*', 'blender.exe'))), None)
+    cand = os.environ.get('MS_BLENDER') or shutil.which('blender') or next(iter(HW.blender_paths(ms)[::-1]), None)
     add('blender', 'Blender', OK if cand else OPT, cand or 'not found', 'Blender template only (Cycles scenery)',
-        '' if cand else 'Optional: unzip portable Blender into .mega-shot/tools/ (https://www.blender.org/download/) or set MS_BLENDER', None if cand else 'manual-optional')
+        '' if cand else 'Optional: ' + ('brew install --cask blender, or drag Blender.app into /Applications' if platform.system() == 'Darwin' else 'unzip portable Blender into .mega-shot/tools/') + ' (https://www.blender.org/download/) or set MS_BLENDER', None if cand else 'manual-optional')
     hs = huashu_dir(skill)
     add('huashu', 'huashu-art-motion skill', OK if hs else OPT, 'present' if hs else 'not installed', 'drawn styles: sketch/whiteboard, flat 2D, kinetic type, 3b1b, 35 painterly styles (xp art)',
         '' if hs else 'xp setup --install huashu   (git clone, MIT; or install the skill next to mega-shot / set HUASHU_SKILL)', None if hs else 'install')
@@ -302,6 +322,13 @@ def install(X, root, ids):
                 if os.path.exists(src) and not os.path.exists(os.path.join(b, 'bsdtar.exe')): shutil.copy(src, os.path.join(b, 'bsdtar.exe'))
                 env['PATH'] = b + os.pathsep + env.get('PATH', '')
             X.run([node, 'cli/om.js', 'samples', 'build'], cwd=repo, env=env)
+        elif i == 'whisper':
+            pl = HW.asr_plan(); X.log(f"  {pl['backend']} · {pl['model']} on {pl['device']} — {pl['why']}")
+            w = [x for pkg in HW.asr_packages(pl) for x in ('--with', pkg)]
+            r = subprocess.run(['uv', 'run', '--quiet', '--no-project', *w, 'python', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'nghe.py'), '--backend', pl['backend'],
+                                '--model', pl['model'], '--device', pl['device'], '--compute', pl['compute'], '--fallback', pl['fallback']], input='', capture_output=True, text=True)
+            X.log('  ' + ((r.stdout.strip().splitlines() or ['?'])[0]) + (' · ' + r.stderr.strip().splitlines()[-1] if r.stderr.strip() else ''))
+            if r.returncode: X.die('speech-recognition model could not be prepared — see the message above')
         elif i == 'birefnet':
             md = os.path.join(ms, 'models'); os.makedirs(md, exist_ok=True)
             X.run(['uv', 'run', '--quiet', '--with', 'rembg[cpu]', 'python', '-c', 'import os,sys; os.environ["U2NET_HOME"]=sys.argv[1]; from rembg import new_session; new_session("birefnet-general"); print("ok")', md])

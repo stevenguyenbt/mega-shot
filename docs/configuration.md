@@ -56,7 +56,7 @@ Extra sources for one video only: `extra_sources: [wikimedia]` in its `video.yam
 | `MS_BLENDER` | Blender executable |
 | `HUASHU_SKILL` | path to huashu-art-motion (otherwise sibling skill folder or `vendor/`) |
 | `MS_ENCODER=x264` | force CPU encoding instead of in-browser WebCodecs |
-| `MS_ASR=voicestudio`, `MS_ASR_MODEL=medium` | narration listen-back engine / Whisper model size |
+| `MS_ASR_BACKEND=mlx\|faster-whisper`, `MS_ASR_MODEL=<name>`, `MS_ASR_DEVICE=cpu\|cuda` | override the speech-recognition choice (see below) · `MS_ASR=voicestudio` uses VoiceStudio's own Whisper |
 | `MS_KHONG_DON=1` | never auto-delete posted video folders |
 | `MS_AUTO_CLEAN=1` | let `xp social run` clean up posted folders |
 | `MS_CHO_CLIP_TU_XAC_NHAN=1` | allow posting a video that contains consent-only clips (one-off) |
@@ -74,3 +74,19 @@ Extra sources for one video only: `extra_sources: [wikimedia]` in its `video.yam
 | `fonts` | thumbnail fonts (OFL) |
 
 Blender: install it yourself (or unzip a portable build into `.mega-shot/tools/`) and set `MS_BLENDER` if it is not on PATH.
+
+## Speech recognition (narration check) — chosen for your computer
+
+Every narrated line is listened back to catch dropped words and to time the karaoke subtitles. `tools/hw.py` looks at
+the machine once per run and picks (`python tools/hw.py` prints the profile and the plan; `xp setup` shows it too):
+
+| Computer | Engine | Whisper model |
+|---|---|---|
+| Apple Silicon Mac, ≥ 16 GB | mlx-whisper on the Apple GPU (Metal) | large-v3-turbo (~1.6 GB) |
+| Apple Silicon Mac, 8–16 GB | mlx-whisper | small (~480 MB) |
+| NVIDIA GPU with ≥ 10 GB VRAM | faster-whisper, CUDA float16 | large-v3-turbo |
+| smaller NVIDIA GPU (kept free for the voice model), Intel Mac, other PCs | faster-whisper, CPU int8 | medium (≥ 12 cores & 32 GB) · small (≥ 4 cores & 8 GB) · base |
+
+If the preferred engine cannot start (package missing, no CUDA libraries, Python running under Rosetta), the worker
+falls back to faster-whisper on the CPU automatically, so narration never stops because of it. `xp setup --install
+whisper` downloads the chosen model ahead of time; otherwise it downloads on the first `xp narrate`.

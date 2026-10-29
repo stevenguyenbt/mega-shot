@@ -108,7 +108,7 @@ def soat(X, ten, nvid, n):
     out = os.path.join(lib(X), ten + '_soat.jpg'); cat = nvid and os.path.exists(os.path.join(X.find_root(os.getcwd()), '.mega-shot', 'nhanvat', nvid, 'nhanvat.json'))
     qs = f'?clip={ten}&soat=1' + (f'&nv={nvid}' if nvid else '') + ('&cat=1' if cat else '')
     with sync_playwright() as pw:
-        b = pw.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist']); pg = b.new_page(viewport={'width': 1400, 'height': 1000})
+        b = pw.chromium.launch(args=__import__('hw').chromium_args()); pg = b.new_page(viewport={'width': 1400, 'height': 1000})
         errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.goto(f'http://127.0.0.1:{srv.server_port}/xuong_dung_dang.html{qs}'); pg.set_default_timeout(300_000); pg.wait_for_function('window.READY === true')
         if pg.evaluate(f'!MS.nv.CLIPS[{json.dumps(ten)}]'): b.close(); srv.shutdown(); sys.exit(f'no clip named {ten}')

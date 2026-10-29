@@ -52,3 +52,18 @@ jobs:
       - name: Regression test (blank template, synthetic voice)
         shell: bash
         run: uv run --with playwright==1.63.0 --with pyyaml --with pillow --with numpy --with ruamel.yaml python tests/kiem_thu.py
+
+  macos-install:
+    # A clean Apple Silicon Mac: the one-command installer, then the render test and the speech-recognition test
+    needs: lint
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: ./install.sh --yes (uv, Homebrew FFmpeg, Chromium, fonts, speech model for this Mac)
+        run: ./install.sh --yes --no-agents --project "$RUNNER_TEMP/proj"
+      - name: Hardware profile + speech plan
+        run: ./xp --help > /dev/null && uv run --no-project python tools/hw.py
+      - name: Regression test (render)
+        run: uv run --no-project --with playwright==1.63.0 --with pyyaml --with pillow --with numpy --with ruamel.yaml python tests/kiem_thu.py
+      - name: Speech recognition (macOS say → Whisper backend chosen for this Mac, with fallback)
+        run: uv run --no-project --with pyyaml python tests/test_asr.py

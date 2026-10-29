@@ -16,7 +16,7 @@ def main(a, X):
     srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(type('Q', (http.server.SimpleHTTPRequestHandler,), {'log_message': lambda *x: None}), directory=eng))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     with sync_playwright() as pw:
-        b = pw.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist']); pg = b.new_page(viewport={'width': 1080, 'height': 1920})
+        b = pw.chromium.launch(args=__import__('hw').chromium_args()); pg = b.new_page(viewport={'width': 1080, 'height': 1920})
         pg.on('pageerror', lambda e: X.log(f'⚠ page error: {e}'))
         styles = a.action in ('styles', 'critters'); crit = a.action == 'critters'
         if styles: pg.set_viewport_size({'width': 1280, 'height': 720})

@@ -5,6 +5,22 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-10-29 — macOS one-command install, Whisper sized for your machine
+
+### Added
+- `install.sh`: one-command setup for macOS (Apple Silicon and Intel) and Linux — uv, Homebrew + FFmpeg, Chromium,
+  fonts, the speech model, agent links, project folder; asks before each step (`--yes`, `--with-voicestudio`, `--project`).
+- `tools/hw.py`: hardware profile (chip, cores, RAM, NVIDIA VRAM, Rosetta) and the speech-recognition plan:
+  mlx-whisper on Apple Silicon, CUDA on big NVIDIA GPUs, faster-whisper int8 on the CPU sized by cores/RAM; automatic
+  CPU fallback in `tools/nghe.py`. `xp setup` shows it; `xp setup --install whisper` pre-downloads the model.
+- CI job on an Apple Silicon Mac (macos-14): runs `./install.sh --yes`, the render test and `tests/test_asr.py`.
+
+### Fixed
+- `xp` and `install.sh` are executable in git (macOS/Linux `./xp` failed with "permission denied").
+- `xp` finds uv/FFmpeg in Homebrew and `~/.local/bin` even when an agent app starts it with a minimal PATH.
+- Headless Chromium uses Metal on macOS and GL on Linux (Direct3D flags only on Windows); Blender, Rockwell font and
+  "open folder" work with macOS paths.
+
 ## [2.2.0] — 2026-10-28 — works with every agent
 
 ### Added

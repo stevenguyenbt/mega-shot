@@ -120,7 +120,7 @@ def cmd_check(a, X, root):
     from playwright.sync_api import sync_playwright
     srv = _server(X, root); S = a.size; shots = {}
     with sync_playwright() as pw:
-        b = pw.chromium.launch(args=['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader']); pg = b.new_page(viewport={'width': S, 'height': S})
+        b = pw.chromium.launch(args=__import__('hw').chromium_args() + ['--enable-unsafe-swiftshader']); pg = b.new_page(viewport={'width': S, 'height': S})
         errs = []; pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: m.type == 'error' and errs.append(m.text))
         pg.goto(f'http://127.0.0.1:{srv.server_port}/core/model_view.html?ten={urllib.parse.quote(a.name)}&size={S}&v={time.time()}')
         t0 = time.time()
